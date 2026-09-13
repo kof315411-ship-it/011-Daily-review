@@ -689,8 +689,6 @@ function updateDateHeader() {
   if (learnTime && !learnTime.value) learnTime.value = now;
   const otherTime = document.getElementById('new-other-time');
   if (otherTime && !otherTime.value) otherTime.value = now;
-  const tomorrowTime = document.getElementById('new-tomorrow-time');
-  if (tomorrowTime && !tomorrowTime.value) tomorrowTime.value = now;
 }
 
 // 1. 渲染家務清單 (可自訂時間 + 現在時間按鈕)
@@ -841,7 +839,7 @@ function renderOtherList() {
   });
 }
 
-// 6. 渲染明日待辦事項 (可自訂時間 + 現在時間按鈕)
+// 6. 渲染明日待辦事項
 function renderTomorrowTodos() {
   const container = document.getElementById('tomorrow-todo-list');
   container.innerHTML = '';
@@ -853,23 +851,15 @@ function renderTomorrowTodos() {
 
   currentDayData.tomorrowTodos.forEach(item => {
     const div = document.createElement('div');
-    div.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-amber-200/90 shadow-2xs hover:border-amber-300 transition';
+    div.className = 'flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-amber-200/90 shadow-2xs hover:border-amber-300 transition';
     div.innerHTML = `
       <div class="flex items-center gap-2 flex-1 min-w-0">
         ${item.tag ? `<span class="px-2 py-0.5 text-xs font-bold rounded bg-amber-100 text-amber-800 flex-shrink-0 border border-amber-200/80">${escapeHtml(item.tag)}</span>` : ''}
         <input type="text" class="tomorrow-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-amber-300 focus:border-amber-500 focus:outline-none transition py-0.5" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
-      <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
-        <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="text" class="tomorrow-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="HH:mm" maxlength="5" inputmode="numeric" title="點擊自訂預排時間 (HH:mm)" />
-          <button type="button" class="btn-update-tomorrow-time text-slate-400 hover:text-amber-600 p-0.5" data-id="${item.id}" title="填入現在時間">
-            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-          </button>
-        </div>
-        <button type="button" class="btn-del-tomorrow text-slate-300 hover:text-rose-500 p-1.5 transition" data-id="${item.id}" title="刪除">
-          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-        </button>
-      </div>
+      <button type="button" class="btn-del-tomorrow text-slate-300 hover:text-rose-500 p-1.5 transition flex-shrink-0" data-id="${item.id}" title="刪除">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
     `;
     container.appendChild(div);
   });
@@ -1741,31 +1731,21 @@ function initEventListeners() {
     showToast('已填入現在時間');
   });
 
-  document.getElementById('btn-now-new-tomorrow')?.addEventListener('click', () => {
-    const el = document.getElementById('new-tomorrow-time');
-    if (el) el.value = getCurrentTimeStr();
-    showToast('已填入現在時間');
-  });
-
   // 11. 明日待辦清單操作
   const btnAddTomorrow = document.getElementById('btn-add-tomorrow');
   const tomorrowTagInput = document.getElementById('new-tomorrow-tag');
   const tomorrowDescInput = document.getElementById('new-tomorrow-desc');
-  const tomorrowTimeInput = document.getElementById('new-tomorrow-time');
   const handleAddTomorrow = () => {
     const tag = tomorrowTagInput ? tomorrowTagInput.value.trim() : '';
     const desc = tomorrowDescInput ? tomorrowDescInput.value.trim() : '';
     if (!desc && !tag) return;
-    const timeVal = (tomorrowTimeInput && tomorrowTimeInput.value) ? format24hTime(tomorrowTimeInput.value) : '';
     currentDayData.tomorrowTodos.push({
       id: generateId(),
       tag: tag || '工作任務',
       desc: desc,
-      completed: false,
-      time: timeVal
+      completed: false
     });
     if (tomorrowDescInput) tomorrowDescInput.value = '';
-    if (tomorrowTimeInput) tomorrowTimeInput.value = getCurrentTimeStr();
     saveCurrentDayData();
     renderTomorrowTodos();
     if (window.lucide) window.lucide.createIcons();
@@ -1777,21 +1757,6 @@ function initEventListeners() {
 
   document.getElementById('tomorrow-todo-list').addEventListener('click', (e) => {
     const target = e.target;
-
-    const timeBtn = target.closest('.btn-update-tomorrow-time');
-    if (timeBtn) {
-      const id = timeBtn.getAttribute('data-id');
-      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
-      if (item) {
-        item.time = getCurrentTimeStr();
-        saveCurrentDayData();
-        renderTomorrowTodos();
-        if (window.lucide) window.lucide.createIcons();
-        showToast('已更新為現在時間');
-      }
-      return;
-    }
-
     const delBtn = target.closest('.btn-del-tomorrow');
     if (delBtn) {
       const id = delBtn.getAttribute('data-id');
@@ -1802,7 +1767,7 @@ function initEventListeners() {
     }
   });
 
-  // 明日待辦行內說明與時間輸入即時儲存與格式化
+  // 明日待辦行內說明輸入即時儲存
   document.getElementById('tomorrow-todo-list').addEventListener('input', (e) => {
     const target = e.target;
     if (target.classList.contains('tomorrow-inline-desc')) {
@@ -1810,26 +1775,6 @@ function initEventListeners() {
       const item = currentDayData.tomorrowTodos.find(x => x.id === id);
       if (item) {
         item.desc = target.value;
-        saveCurrentDayData();
-      }
-    } else if (target.classList.contains('tomorrow-inline-time')) {
-      const id = target.getAttribute('data-id');
-      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
-      if (item) {
-        item.time = target.value;
-        saveCurrentDayData();
-      }
-    }
-  });
-
-  document.getElementById('tomorrow-todo-list').addEventListener('change', (e) => {
-    const target = e.target;
-    if (target.classList.contains('tomorrow-inline-time')) {
-      target.value = format24hTime(target.value);
-      const id = target.getAttribute('data-id');
-      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
-      if (item) {
-        item.time = target.value;
         saveCurrentDayData();
       }
     }

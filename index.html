@@ -485,22 +485,14 @@
             <!-- 動態注入 -->
           </div>
 
-          <!-- 新增明日待辦輸入 (專案/標題 + 待辦內容 + 可選填時間 + 現在時間) -->
+          <!-- 新增明日待辦輸入 (專案/標題 + 待辦內容 + 新增按鈕) -->
           <div class="bg-amber-50/70 p-3 rounded-xl border border-amber-200/80 flex flex-col sm:flex-row gap-2">
             <input type="text" id="new-tomorrow-tag" placeholder="專案/標題" class="sm:w-28 px-3 py-2 bg-white border border-amber-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none" />
-            <input type="text" id="new-tomorrow-desc" placeholder="待辦事項內容..." class="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none" />
-            <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <div class="flex items-center gap-1 bg-white border border-amber-200 rounded-lg px-2 py-1.5 shadow-2xs">
-                <input type="text" id="new-tomorrow-time" class="time-24h-input mono-font text-xs bg-transparent text-slate-700 focus:outline-none" placeholder="HH:mm" maxlength="5" inputmode="numeric" title="可自訂預計時間（選填，HH:mm）" />
-                <button type="button" id="btn-now-new-tomorrow" class="p-1 text-slate-400 hover:text-amber-600 rounded transition" title="填入現在時間">
-                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                </button>
-              </div>
-              <button type="button" id="btn-add-tomorrow" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                <span>新增</span>
-              </button>
-            </div>
+            <input type="text" id="new-tomorrow-desc" placeholder="待辦事項內容..." class="flex-1 min-w-0 px-3 py-2 bg-white border border-amber-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none" />
+            <button type="button" id="btn-add-tomorrow" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition flex-shrink-0">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>新增</span>
+            </button>
           </div>
         </section>
 
