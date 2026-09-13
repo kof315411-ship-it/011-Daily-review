@@ -41,6 +41,42 @@ function getCurrentTimeStr() {
   return `${h}:${m}`;
 }
 
+// 嚴格校正並格式化為 24 小時制時間字串 (HH:mm)
+function format24hTime(val) {
+  if (!val) return '';
+  val = String(val).trim();
+  // 已經是合法 HH:mm (00:00 ~ 23:59)
+  const exactMatch = val.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (exactMatch) {
+    const h = exactMatch[1].padStart(2, '0');
+    const m = exactMatch[2];
+    return `${h}:${m}`;
+  }
+  // 帶冒號但分鐘僅一位 (如 9:0 -> 09:00, 16:5 -> 16:05)
+  const singleMinMatch = val.match(/^([01]?\d|2[0-3]):(\d)$/);
+  if (singleMinMatch) {
+    const h = singleMinMatch[1].padStart(2, '0');
+    const m = singleMinMatch[2].padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  // 純數字處理
+  const digits = val.replace(/\D/g, '');
+  if (digits.length === 3) {
+    const h = digits.slice(0, 1).padStart(2, '0');
+    const m = digits.slice(1, 3);
+    if (parseInt(h, 10) < 24 && parseInt(m, 10) < 60) return `${h}:${m}`;
+  } else if (digits.length === 4) {
+    const h = digits.slice(0, 2);
+    const m = digits.slice(2, 4);
+    if (parseInt(h, 10) < 24 && parseInt(m, 10) < 60) return `${h}:${m}`;
+  } else if (digits.length === 1 || digits.length === 2) {
+    const h = digits.padStart(2, '0');
+    if (parseInt(h, 10) < 24) return `${h}:00`;
+  }
+  return val;
+}
+
+
 // 將 YYYY-MM-DD 轉成 0909 (三) 格式
 function formatReviewDateTitle(dateStr) {
   const parts = dateStr.split('-');
@@ -673,7 +709,7 @@ function renderChores() {
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="time" class="chore-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂時間" />
+          <input type="text" class="chore-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
           <button type="button" class="btn-update-chore-time text-slate-400 hover:text-teal-600 p-0.5" data-id="${item.id}" title="更新為現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -735,7 +771,7 @@ function renderTaggedList(listData, containerId, categoryKey, placeholderEmpty) 
       </div>
       <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="time" class="item-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-category="${categoryKey}" data-id="${item.id}" value="${item.time || ''}" />
+          <input type="text" class="item-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-category="${categoryKey}" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
           <button type="button" class="btn-update-item-time text-slate-400 hover:text-blue-600 p-0.5" data-category="${categoryKey}" data-id="${item.id}" title="重設為現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -781,7 +817,7 @@ function renderOtherList() {
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="time" class="item-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-category="other" data-id="${item.id}" value="${item.time || ''}" />
+          <input type="text" class="item-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-category="other" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
           <button type="button" class="btn-update-item-time text-slate-400 hover:text-amber-600 p-0.5" data-category="other" data-id="${item.id}" title="重設為現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -815,7 +851,7 @@ function renderTomorrowTodos() {
       </div>
       <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="time" class="tomorrow-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂預排時間" />
+          <input type="text" class="tomorrow-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂預排時間 (HH:mm)" />
           <button type="button" class="btn-update-tomorrow-time text-slate-400 hover:text-amber-600 p-0.5" data-id="${item.id}" title="填入現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -1383,7 +1419,7 @@ function initEventListeners() {
 
   function addChore(name) {
     const choreTimeEl = document.getElementById('new-chore-time');
-    const timeVal = (choreTimeEl && choreTimeEl.value) ? choreTimeEl.value : getCurrentTimeStr();
+    const timeVal = (choreTimeEl && choreTimeEl.value) ? format24hTime(choreTimeEl.value) : getCurrentTimeStr();
     currentDayData.chores.push({
       id: generateId(),
       name: name,
@@ -1439,10 +1475,23 @@ function initEventListeners() {
     }
   });
 
-  // 家務自訂時間輸入即時儲存
+  // 家務自訂時間輸入即時儲存與格式化
   document.getElementById('chores-list').addEventListener('input', (e) => {
     const target = e.target;
     if (target.classList.contains('chore-inline-time')) {
+      const id = target.getAttribute('data-id');
+      const item = currentDayData.chores.find(c => c.id === id);
+      if (item) {
+        item.time = target.value;
+        saveCurrentDayData();
+      }
+    }
+  });
+
+  document.getElementById('chores-list').addEventListener('change', (e) => {
+    const target = e.target;
+    if (target.classList.contains('chore-inline-time')) {
+      target.value = format24hTime(target.value);
       const id = target.getAttribute('data-id');
       const item = currentDayData.chores.find(c => c.id === id);
       if (item) {
@@ -1463,7 +1512,7 @@ function initEventListeners() {
 
     if (currentDayData.diet[mealKey]) {
       currentDayData.diet[mealKey].completed = check.checked;
-      currentDayData.diet[mealKey].time = timeInput.value;
+      currentDayData.diet[mealKey].time = format24hTime(timeInput.value);
       currentDayData.diet[mealKey].content = contentInput.value;
       saveCurrentDayData();
       renderDiet();
@@ -1491,7 +1540,7 @@ function initEventListeners() {
   const workTag = document.getElementById('new-work-tag');
   const workDesc = document.getElementById('new-work-desc');
   const workTime = document.getElementById('new-work-time');
-  const handleAddWork = () => {
+    const handleAddWork = () => {
     const desc = workDesc.value.trim();
     const tag = workTag.value.trim();
     if (!desc && !tag) return;
@@ -1500,7 +1549,7 @@ function initEventListeners() {
       tag: tag || '工作任務',
       desc: desc,
       completed: true,
-      time: workTime.value || getCurrentTimeStr()
+      time: (workTime && workTime.value) ? format24hTime(workTime.value) : getCurrentTimeStr()
     });
     workDesc.value = '';
     workTime.value = getCurrentTimeStr();
@@ -1527,7 +1576,7 @@ function initEventListeners() {
       tag: tag || '休閒',
       desc: desc,
       completed: true,
-      time: entTime.value || getCurrentTimeStr()
+      time: (entTime && entTime.value) ? format24hTime(entTime.value) : getCurrentTimeStr()
     });
     entDesc.value = '';
     entTime.value = getCurrentTimeStr();
@@ -1554,7 +1603,7 @@ function initEventListeners() {
       tag: tag || '學習',
       desc: desc,
       completed: true,
-      time: learnTime.value || getCurrentTimeStr()
+      time: (learnTime && learnTime.value) ? format24hTime(learnTime.value) : getCurrentTimeStr()
     });
     learnDesc.value = '';
     learnTime.value = getCurrentTimeStr();
@@ -1578,7 +1627,7 @@ function initEventListeners() {
       id: generateId(),
       desc: desc,
       completed: true,
-      time: otherTime.value || getCurrentTimeStr()
+      time: (otherTime && otherTime.value) ? format24hTime(otherTime.value) : getCurrentTimeStr()
     });
     otherDesc.value = '';
     otherTime.value = getCurrentTimeStr();
@@ -1662,6 +1711,20 @@ function initEventListeners() {
         }
       }
     });
+
+    el.addEventListener('change', (e) => {
+      const target = e.target;
+      if (target.classList.contains('item-inline-time')) {
+        target.value = format24hTime(target.value);
+        const cat = target.getAttribute('data-category');
+        const id = target.getAttribute('data-id');
+        const item = currentDayData[cat]?.find(x => x.id === id);
+        if (item) {
+          item.time = target.value;
+          saveCurrentDayData();
+        }
+      }
+    });
   });
 
   // 各分類新增列的「現在時間」按鈕
@@ -1702,7 +1765,7 @@ function initEventListeners() {
   const handleAddTomorrow = () => {
     const desc = tomorrowInput.value.trim();
     if (!desc) return;
-    const timeVal = (tomorrowTimeInput && tomorrowTimeInput.value) ? tomorrowTimeInput.value : '';
+    const timeVal = (tomorrowTimeInput && tomorrowTimeInput.value) ? format24hTime(tomorrowTimeInput.value) : '';
     currentDayData.tomorrowTodos.push({
       id: generateId(),
       desc: desc,
@@ -1757,10 +1820,23 @@ function initEventListeners() {
     }
   });
 
-  // 明日待辦行內時間輸入即時儲存
+  // 明日待辦行內時間輸入即時儲存與格式化
   document.getElementById('tomorrow-todo-list').addEventListener('input', (e) => {
     const target = e.target;
     if (target.classList.contains('tomorrow-inline-time')) {
+      const id = target.getAttribute('data-id');
+      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
+      if (item) {
+        item.time = target.value;
+        saveCurrentDayData();
+      }
+    }
+  });
+
+  document.getElementById('tomorrow-todo-list').addEventListener('change', (e) => {
+    const target = e.target;
+    if (target.classList.contains('tomorrow-inline-time')) {
+      target.value = format24hTime(target.value);
       const id = target.getAttribute('data-id');
       const item = currentDayData.tomorrowTodos.find(x => x.id === id);
       if (item) {
@@ -2015,6 +2091,34 @@ function initEventListeners() {
       clockEl.textContent = `當下時間：${d.toTimeString().split(' ')[0]}`;
     }
   }, 1000);
+
+  // 21. 全域監聽 24 小時制時間輸入框（HH:mm）過濾非法字元、自動補冒號與失焦校正
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.classList.contains('time-24h-input')) {
+      let val = e.target.value;
+      const filtered = val.replace(/[^0-9:]/g, '');
+      if (filtered !== val) {
+        e.target.value = filtered;
+        val = filtered;
+      }
+      // 輸入 4 碼純數字 (如 1640) 自動插入冒號為 16:40
+      if (/^\d{4}$/.test(val)) {
+        e.target.value = val.slice(0, 2) + ':' + val.slice(2, 4);
+      }
+    }
+  });
+
+  document.addEventListener('blur', (e) => {
+    if (e.target && e.target.classList.contains('time-24h-input')) {
+      if (e.target.value.trim() !== '') {
+        const formatted = format24hTime(e.target.value);
+        if (formatted !== e.target.value) {
+          e.target.value = formatted;
+          e.target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }
+  }, true);
 }
 
 // 應用程式初始化

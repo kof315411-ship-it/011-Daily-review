@@ -20,22 +20,20 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* 時間輸入框全數強制 24 小時制 (HH:mm)，隱藏上午/下午欄位及原生內部小圖標 */
-input[type="time"]::-webkit-calendar-picker-indicator {
-  display: none !important;
-  -webkit-appearance: none;
-}
-input[type="time"]::-webkit-datetime-edit-ampm-field {
-  display: none !important;
-  -webkit-appearance: none;
-}
-input[type="time"] {
-  min-width: 4.8rem !important;
-  max-width: 5.8rem;
+/* 嚴格 24 小時制時間輸入框樣式 (HH:mm) */
+.time-24h-input {
+  width: 3.8rem !important;
+  min-width: 3.8rem;
+  max-width: 4.8rem;
   text-align: center;
+  font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.05em;
 }
+.time-24h-input:focus {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
 
 /* 防止 iOS 輸入時自動放大畫面 (要求 font-size >= 14px~16px) */
 @media screen and (max-width: 768px) {
