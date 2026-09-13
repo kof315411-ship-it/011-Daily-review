@@ -191,6 +191,10 @@ function loadDayData(dateStr) {
     if (!Array.isArray(data.learning)) data.learning = [];
     if (!Array.isArray(data.other)) data.other = [];
     if (!Array.isArray(data.tomorrowTodos)) data.tomorrowTodos = [];
+    // 清理舊資料中的「昨日待辦」標籤，一律恢復為專案或工作任務
+    data.work.forEach(w => {
+      if (w.tag === '昨日待辦') w.tag = '工作任務';
+    });
     return data;
   } catch (e) {
     console.error('資料解析失敗，載入預設值', e);
@@ -709,7 +713,7 @@ function renderChores() {
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="text" class="chore-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
+          <input type="text" class="chore-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="HH:mm" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
           <button type="button" class="btn-update-chore-time text-slate-400 hover:text-teal-600 p-0.5" data-id="${item.id}" title="更新為現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -771,7 +775,7 @@ function renderTaggedList(listData, containerId, categoryKey, placeholderEmpty) 
       </div>
       <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="text" class="item-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-category="${categoryKey}" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
+          <input type="text" class="item-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-category="${categoryKey}" data-id="${item.id}" value="${item.time || ''}" placeholder="HH:mm" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
           <button type="button" class="btn-update-item-time text-slate-400 hover:text-blue-600 p-0.5" data-category="${categoryKey}" data-id="${item.id}" title="重設為現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -817,7 +821,7 @@ function renderOtherList() {
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="text" class="item-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-category="other" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
+          <input type="text" class="item-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-category="other" data-id="${item.id}" value="${item.time || ''}" placeholder="HH:mm" maxlength="5" inputmode="numeric" title="點擊自訂時間 (HH:mm)" />
           <button type="button" class="btn-update-item-time text-slate-400 hover:text-amber-600 p-0.5" data-category="other" data-id="${item.id}" title="重設為現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -847,11 +851,12 @@ function renderTomorrowTodos() {
     div.innerHTML = `
       <div class="flex items-center gap-2 flex-1 min-w-0">
         <input type="checkbox" class="custom-checkbox tomorrow-checkbox" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
-        <span class="text-xs text-slate-800 item-text flex-1 truncate">${escapeHtml(item.desc)}</span>
+        ${item.tag ? `<span class="px-2 py-0.5 text-xs font-bold rounded bg-amber-100 text-amber-800 flex-shrink-0 border border-amber-200/80">${escapeHtml(item.tag)}</span>` : ''}
+        <input type="text" class="tomorrow-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-amber-300 focus:border-amber-500 focus:outline-none transition py-0.5" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
       <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
-          <input type="text" class="tomorrow-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="16:40" maxlength="5" inputmode="numeric" title="點擊自訂預排時間 (HH:mm)" />
+          <input type="text" class="tomorrow-inline-time time-24h-input bg-transparent text-xs text-slate-700 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" placeholder="HH:mm" maxlength="5" inputmode="numeric" title="點擊自訂預排時間 (HH:mm)" />
           <button type="button" class="btn-update-tomorrow-time text-slate-400 hover:text-amber-600 p-0.5" data-id="${item.id}" title="填入現在時間">
             <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
@@ -969,7 +974,8 @@ function generateReviewTextForData(data) {
     lines.push('');
     lines.push('明日待辦事項');
     data.tomorrowTodos.forEach(t => {
-      lines.push(`  · ${t.desc || ''}`);
+      const tag = t.tag ? `${t.tag}：` : '';
+      lines.push(`  · ${tag}${t.desc || ''}`);
     });
   }
 
@@ -1067,7 +1073,7 @@ function renderHistory() {
     if (item.entertainment.some(e => (e.tag || '').toLowerCase().includes(term) || (e.desc || '').toLowerCase().includes(term))) return true;
     if (item.learning.some(l => (l.tag || '').toLowerCase().includes(term) || (l.desc || '').toLowerCase().includes(term))) return true;
     if (item.other.some(o => (o.desc || '').toLowerCase().includes(term))) return true;
-    if (item.tomorrowTodos.some(t => (t.desc || '').toLowerCase().includes(term))) return true;
+    if (item.tomorrowTodos.some(t => (t.tag || '').toLowerCase().includes(term) || (t.desc || '').toLowerCase().includes(term))) return true;
 
     return false;
   });
@@ -1133,7 +1139,7 @@ function renderHistory() {
     let todoHtml = '';
     if (dayItem.tomorrowTodos.length > 0) {
       todoHtml = dayItem.tomorrowTodos.map(t => `
-        <li class="truncate text-amber-900/90 font-medium">· ${highlightText(t.desc, term)}</li>
+        <li class="truncate text-amber-900/90 font-medium">· ${t.tag ? `<strong>${highlightText(t.tag, term)}</strong>：` : ''}${highlightText(t.desc, term)}</li>
       `).join('');
     }
 
@@ -1760,27 +1766,31 @@ function initEventListeners() {
 
   // 11. 明日待辦清單操作
   const btnAddTomorrow = document.getElementById('btn-add-tomorrow');
-  const tomorrowInput = document.getElementById('new-tomorrow-input');
+  const tomorrowTagInput = document.getElementById('new-tomorrow-tag');
+  const tomorrowDescInput = document.getElementById('new-tomorrow-desc');
   const tomorrowTimeInput = document.getElementById('new-tomorrow-time');
   const handleAddTomorrow = () => {
-    const desc = tomorrowInput.value.trim();
-    if (!desc) return;
+    const tag = tomorrowTagInput ? tomorrowTagInput.value.trim() : '';
+    const desc = tomorrowDescInput ? tomorrowDescInput.value.trim() : '';
+    if (!desc && !tag) return;
     const timeVal = (tomorrowTimeInput && tomorrowTimeInput.value) ? format24hTime(tomorrowTimeInput.value) : '';
     currentDayData.tomorrowTodos.push({
       id: generateId(),
+      tag: tag || '工作任務',
       desc: desc,
       completed: false,
       time: timeVal
     });
-    tomorrowInput.value = '';
+    if (tomorrowDescInput) tomorrowDescInput.value = '';
     if (tomorrowTimeInput) tomorrowTimeInput.value = getCurrentTimeStr();
     saveCurrentDayData();
     renderTomorrowTodos();
     if (window.lucide) window.lucide.createIcons();
     showToast('已新增明日待辦事項');
   };
-  btnAddTomorrow.addEventListener('click', handleAddTomorrow);
-  tomorrowInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddTomorrow(); });
+  btnAddTomorrow?.addEventListener('click', handleAddTomorrow);
+  tomorrowTagInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddTomorrow(); });
+  tomorrowDescInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddTomorrow(); });
 
   document.getElementById('tomorrow-todo-list').addEventListener('click', (e) => {
     const target = e.target;
@@ -1820,10 +1830,17 @@ function initEventListeners() {
     }
   });
 
-  // 明日待辦行內時間輸入即時儲存與格式化
+  // 明日待辦行內說明與時間輸入即時儲存與格式化
   document.getElementById('tomorrow-todo-list').addEventListener('input', (e) => {
     const target = e.target;
-    if (target.classList.contains('tomorrow-inline-time')) {
+    if (target.classList.contains('tomorrow-inline-desc')) {
+      const id = target.getAttribute('data-id');
+      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
+      if (item) {
+        item.desc = target.value;
+        saveCurrentDayData();
+      }
+    } else if (target.classList.contains('tomorrow-inline-time')) {
       const id = target.getAttribute('data-id');
       const item = currentDayData.tomorrowTodos.find(x => x.id === id);
       if (item) {
@@ -1851,15 +1868,24 @@ function initEventListeners() {
     const uncompletedItems = [];
 
     currentDayData.work.filter(w => !w.completed && w.desc).forEach(w => {
-      uncompletedItems.push(`[工作] ${w.tag ? w.tag + '：' : ''}${w.desc}`);
+      uncompletedItems.push({
+        tag: w.tag || '工作任務',
+        desc: w.desc
+      });
     });
 
     currentDayData.learning.filter(l => !l.completed && l.desc).forEach(l => {
-      uncompletedItems.push(`[學習] ${l.tag ? l.tag + '：' : ''}${l.desc}`);
+      uncompletedItems.push({
+        tag: l.tag || '學習',
+        desc: l.desc
+      });
     });
 
     currentDayData.other.filter(o => !o.completed && o.desc).forEach(o => {
-      uncompletedItems.push(`[其他] ${o.desc}`);
+      uncompletedItems.push({
+        tag: '其他',
+        desc: o.desc
+      });
     });
 
     if (uncompletedItems.length === 0) {
@@ -1868,13 +1894,15 @@ function initEventListeners() {
     }
 
     let count = 0;
-    uncompletedItems.forEach(desc => {
-      const exists = currentDayData.tomorrowTodos.some(t => t.desc === desc);
+    uncompletedItems.forEach(u => {
+      const exists = currentDayData.tomorrowTodos.some(t => t.desc === u.desc && (t.tag || '') === (u.tag || ''));
       if (!exists) {
         currentDayData.tomorrowTodos.push({
           id: generateId(),
-          desc: desc,
-          completed: false
+          tag: u.tag,
+          desc: u.desc,
+          completed: false,
+          time: ''
         });
         count++;
       }
@@ -1907,15 +1935,27 @@ function initEventListeners() {
 
     let addedCount = 0;
     yesterdayData.tomorrowTodos.forEach(item => {
-      const cleanDesc = item.desc.replace(/^\[(工作|學習|其他)\]\s*/, '');
+      let finalTag = (item.tag || '').trim();
+      let cleanDesc = (item.desc || '').trim();
+      // 兼容舊資料格式：若 item.desc 含有 [工作] 或 [學習] 等前綴，拆解出 tag 與純文字
+      const prefixMatch = cleanDesc.match(/^\[(.*?)\]\s*(.*)$/);
+      if (prefixMatch) {
+        if (!finalTag) finalTag = prefixMatch[1];
+        cleanDesc = prefixMatch[2];
+      }
+      // 排除「昨日待辦」字樣，改為原專案名稱或「工作任務」
+      if (finalTag === '昨日待辦' || !finalTag) {
+        finalTag = '工作任務';
+      }
+
       const exists = currentDayData.work.some(w => w.desc === cleanDesc);
       if (!exists) {
         currentDayData.work.push({
           id: generateId(),
-          tag: '昨日待辦',
+          tag: finalTag,
           desc: cleanDesc,
           completed: false,
-          time: getCurrentTimeStr()
+          time: item.time || getCurrentTimeStr()
         });
         addedCount++;
       }
