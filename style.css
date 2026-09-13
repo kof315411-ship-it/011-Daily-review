@@ -20,16 +20,21 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* 時間輸入框優化：隱藏瀏覽器原生自帶的內部小時鐘圖示（避免與外部按鈕雙重顯示並擠壓寬度），防止內容被截斷 */
+/* 時間輸入框全數強制 24 小時制 (HH:mm)，隱藏上午/下午欄位及原生內部小圖標 */
 input[type="time"]::-webkit-calendar-picker-indicator {
   display: none !important;
   -webkit-appearance: none;
 }
+input[type="time"]::-webkit-datetime-edit-ampm-field {
+  display: none !important;
+  -webkit-appearance: none;
+}
 input[type="time"] {
-  min-width: 6.8rem;
-  padding-left: 0.15rem;
-  padding-right: 0.15rem;
-  letter-spacing: 0.01em;
+  min-width: 4.8rem !important;
+  max-width: 5.8rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
 }
 
 /* 防止 iOS 輸入時自動放大畫面 (要求 font-size >= 14px~16px) */
