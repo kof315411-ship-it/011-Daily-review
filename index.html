@@ -198,13 +198,21 @@
                 <!-- 動態注入 -->
               </div>
 
-              <!-- 新增家務輸入條 -->
-              <div class="flex items-center gap-2 pt-2 border-t border-slate-200/50">
+              <!-- 新增家務輸入條 (可自訂時間 + 現在時間) -->
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-200/50">
                 <input type="text" id="new-chore-input" placeholder="輸入家務項目（例：擦桌子、吸塵...）" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500" />
-                <button type="button" id="btn-add-chore" class="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition">
-                  <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                  <span>記錄</span>
-                </button>
+                <div class="flex items-center gap-1.5 justify-between sm:justify-start">
+                  <div class="flex items-center gap-1">
+                    <input type="time" id="new-chore-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
+                    <button type="button" id="btn-now-new-chore" class="p-2 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+                      <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                  <button type="button" id="btn-add-chore" class="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    <span>記錄</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -340,9 +348,15 @@
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
             <input type="text" id="new-work-tag" placeholder="專案/標題 (例：格雷農科專)" class="sm:w-36 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
             <input type="text" id="new-work-desc" placeholder="具體工作內容 (例：完成結案報告修改、承辦聯繫...)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+            <!-- 工作新增欄位 (可自訂時間 + 現在時間) -->
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <input type="time" id="new-work-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" />
-              <button type="button" id="btn-add-work" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+              <div class="flex items-center gap-1">
+                <input type="time" id="new-work-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
+                <button type="button" id="btn-now-new-work" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <button type="button" id="btn-add-work" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 <span>新增</span>
               </button>
@@ -370,13 +384,18 @@
             <!-- 動態注入 -->
           </div>
 
-          <!-- 新增娛樂輸入組件 -->
+          <!-- 新增娛樂輸入組件 (可自訂時間 + 現在時間) -->
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
             <input type="text" id="new-entertainment-tag" placeholder="類別 (例：番茄小說 / 追劇)" class="sm:w-36 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
             <input type="text" id="new-entertainment-desc" placeholder="詳細內容 (例：穿成侯夫人，讓當外室的女主絕望...)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <input type="time" id="new-entertainment-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" />
-              <button type="button" id="btn-add-entertainment" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+              <div class="flex items-center gap-1">
+                <input type="time" id="new-entertainment-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
+                <button type="button" id="btn-now-new-entertainment" class="p-2 text-slate-400 hover:text-pink-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <button type="button" id="btn-add-entertainment" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 <span>新增</span>
               </button>
@@ -404,13 +423,18 @@
             <!-- 動態注入 -->
           </div>
 
-          <!-- 新增學習輸入組件 -->
+          <!-- 新增學習輸入組件 (可自訂時間 + 現在時間) -->
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
             <input type="text" id="new-learning-tag" placeholder="項目 (例：英文 / 程式 / 閱讀)" class="sm:w-36 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none" />
             <input type="text" id="new-learning-desc" placeholder="學習內容 (例：Duolingo、刷刷庫、26秒背單字、Speak...)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <input type="time" id="new-learning-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" />
-              <button type="button" id="btn-add-learning" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+              <div class="flex items-center gap-1">
+                <input type="time" id="new-learning-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
+                <button type="button" id="btn-now-new-learning" class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <button type="button" id="btn-add-learning" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 <span>新增</span>
               </button>
@@ -438,12 +462,17 @@
             <!-- 動態注入 -->
           </div>
 
-          <!-- 新增其他事件輸入組件 -->
+          <!-- 新增其他事件輸入組件 (可自訂時間 + 現在時間) -->
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
             <input type="text" id="new-other-desc" placeholder="事件內容細項..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <input type="time" id="new-other-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" />
-              <button type="button" id="btn-add-other" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+              <div class="flex items-center gap-1">
+                <input type="time" id="new-other-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
+                <button type="button" id="btn-now-new-other" class="p-2 text-slate-400 hover:text-amber-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <button type="button" id="btn-add-other" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 <span>新增</span>
               </button>
@@ -488,13 +517,21 @@
             <!-- 動態注入 -->
           </div>
 
-          <!-- 新增明日待辦輸入 -->
-          <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
+          <!-- 新增明日待辦輸入 (可選填時間 + 現在時間) -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-200">
             <input type="text" id="new-tomorrow-input" placeholder="新增明日待辦事項..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500" />
-            <button type="button" id="btn-add-tomorrow" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>新增</span>
-            </button>
+            <div class="flex items-center gap-1.5 justify-between sm:justify-start">
+              <div class="flex items-center gap-1">
+                <input type="time" id="new-tomorrow-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂預計時間（選填）" />
+                <button type="button" id="btn-now-new-tomorrow" class="p-2 text-slate-400 hover:text-amber-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="填入現在時間">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <button type="button" id="btn-add-tomorrow" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition flex-shrink-0">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>新增</span>
+              </button>
+            </div>
           </div>
         </section>
 

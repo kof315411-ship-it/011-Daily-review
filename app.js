@@ -639,6 +639,8 @@ function updateDateHeader() {
   badge.textContent = `${parts[1]}/${parts[2]} (${weekday})`;
 
   const now = getCurrentTimeStr();
+  const choreTime = document.getElementById('new-chore-time');
+  if (choreTime && !choreTime.value) choreTime.value = now;
   const workTime = document.getElementById('new-work-time');
   if (workTime && !workTime.value) workTime.value = now;
   const entTime = document.getElementById('new-entertainment-time');
@@ -647,9 +649,11 @@ function updateDateHeader() {
   if (learnTime && !learnTime.value) learnTime.value = now;
   const otherTime = document.getElementById('new-other-time');
   if (otherTime && !otherTime.value) otherTime.value = now;
+  const tomorrowTime = document.getElementById('new-tomorrow-time');
+  if (tomorrowTime && !tomorrowTime.value) tomorrowTime.value = now;
 }
 
-// 1. 渲染家務清單
+// 1. 渲染家務清單 (可自訂時間 + 現在時間按鈕)
 function renderChores() {
   const container = document.getElementById('chores-list');
   container.innerHTML = '';
@@ -668,8 +672,8 @@ function renderChores() {
         <span class="text-xs font-semibold text-slate-800 item-text truncate">${escapeHtml(item.name)}</span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-500 text-[11px] mono-font">
-          <span>${item.time || '--:--'}</span>
+        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600 text-xs mono-font">
+          <input type="time" class="chore-inline-time bg-transparent text-xs w-16 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂時間" />
           <button type="button" class="btn-update-chore-time text-slate-400 hover:text-teal-600" data-id="${item.id}" title="更新為現在時間">
             <i data-lucide="clock" class="w-3 h-3"></i>
           </button>
@@ -791,7 +795,7 @@ function renderOtherList() {
   });
 }
 
-// 6. 渲染明日待辦事項
+// 6. 渲染明日待辦事項 (可自訂時間 + 現在時間按鈕)
 function renderTomorrowTodos() {
   const container = document.getElementById('tomorrow-todo-list');
   container.innerHTML = '';
@@ -803,15 +807,23 @@ function renderTomorrowTodos() {
 
   currentDayData.tomorrowTodos.forEach(item => {
     const div = document.createElement('div');
-    div.className = `flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-amber-200 shadow-2xs hover:border-amber-300 transition ${item.completed ? 'item-completed bg-slate-50/70' : ''}`;
+    div.className = `flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-amber-200/90 shadow-2xs hover:border-amber-300 transition ${item.completed ? 'item-completed bg-slate-50/70' : ''}`;
     div.innerHTML = `
       <div class="flex items-center gap-2 flex-1 min-w-0">
         <input type="checkbox" class="custom-checkbox tomorrow-checkbox" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
         <span class="text-xs text-slate-800 item-text flex-1 truncate">${escapeHtml(item.desc)}</span>
       </div>
-      <button type="button" class="btn-del-tomorrow text-slate-300 hover:text-rose-500 p-1 transition" data-id="${item.id}" title="刪除">
-        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-      </button>
+      <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
+        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600 text-xs mono-font">
+          <input type="time" class="tomorrow-inline-time bg-transparent text-xs w-16 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂預排時間" />
+          <button type="button" class="btn-update-tomorrow-time text-slate-400 hover:text-amber-600" data-id="${item.id}" title="填入現在時間">
+            <i data-lucide="clock" class="w-3 h-3"></i>
+          </button>
+        </div>
+        <button type="button" class="btn-del-tomorrow text-slate-300 hover:text-rose-500 p-1.5 transition" data-id="${item.id}" title="刪除">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
     `;
     container.appendChild(div);
   });
@@ -1340,6 +1352,7 @@ function initEventListeners() {
   });
 
   // 4. 家務快捷標籤點擊
+  // 4. 家務快捷標籤點擊
   document.querySelectorAll('.quick-chore-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.getAttribute('data-name');
@@ -1361,13 +1374,23 @@ function initEventListeners() {
     if (e.key === 'Enter') handleAddChoreInput();
   });
 
+  // 家務新增列的現在時間按鈕
+  document.getElementById('btn-now-new-chore')?.addEventListener('click', () => {
+    const el = document.getElementById('new-chore-time');
+    if (el) el.value = getCurrentTimeStr();
+    showToast('已填入現在時間');
+  });
+
   function addChore(name) {
+    const choreTimeEl = document.getElementById('new-chore-time');
+    const timeVal = (choreTimeEl && choreTimeEl.value) ? choreTimeEl.value : getCurrentTimeStr();
     currentDayData.chores.push({
       id: generateId(),
       name: name,
       completed: true,
-      time: getCurrentTimeStr()
+      time: timeVal
     });
+    if (choreTimeEl) choreTimeEl.value = getCurrentTimeStr();
     saveCurrentDayData();
     renderChores();
     updateProgressAndStats();
@@ -1375,6 +1398,7 @@ function initEventListeners() {
     showToast(`已記錄家務：${name}`);
   }
 
+  // 家務列表事件 (Checkbox, 自訂時間輸入, 現在時間按鈕, 刪除)
   document.getElementById('chores-list').addEventListener('click', (e) => {
     const target = e.target;
     if (target.classList.contains('chore-checkbox')) {
@@ -1399,7 +1423,7 @@ function initEventListeners() {
         saveCurrentDayData();
         renderChores();
         if (window.lucide) window.lucide.createIcons();
-        showToast('已更新為當下時間');
+        showToast('已更新為現在時間');
       }
       return;
     }
@@ -1412,6 +1436,19 @@ function initEventListeners() {
       renderChores();
       updateProgressAndStats();
       if (window.lucide) window.lucide.createIcons();
+    }
+  });
+
+  // 家務自訂時間輸入即時儲存
+  document.getElementById('chores-list').addEventListener('input', (e) => {
+    const target = e.target;
+    if (target.classList.contains('chore-inline-time')) {
+      const id = target.getAttribute('data-id');
+      const item = currentDayData.chores.find(c => c.id === id);
+      if (item) {
+        item.time = target.value;
+        saveCurrentDayData();
+      }
     }
   });
 
@@ -1444,7 +1481,7 @@ function initEventListeners() {
       if (currentDayData.diet[mealKey]) {
         currentDayData.diet[mealKey].time = now;
         saveCurrentDayData();
-        showToast('已填入當下時間');
+        showToast('已填入現在時間');
       }
     });
   });
@@ -1586,7 +1623,7 @@ function initEventListeners() {
           saveCurrentDayData();
           renderTaggedList(currentDayData[cat], `${cat}-list`, cat, '');
           if (window.lucide) window.lucide.createIcons();
-          showToast('已更新為當下時間');
+          showToast('已更新為現在時間');
         }
         return;
       }
@@ -1627,18 +1664,53 @@ function initEventListeners() {
     });
   });
 
+  // 各分類新增列的「現在時間」按鈕
+  document.getElementById('btn-now-new-work')?.addEventListener('click', () => {
+    const el = document.getElementById('new-work-time');
+    if (el) el.value = getCurrentTimeStr();
+    showToast('已填入現在時間');
+  });
+
+  document.getElementById('btn-now-new-entertainment')?.addEventListener('click', () => {
+    const el = document.getElementById('new-entertainment-time');
+    if (el) el.value = getCurrentTimeStr();
+    showToast('已填入現在時間');
+  });
+
+  document.getElementById('btn-now-new-learning')?.addEventListener('click', () => {
+    const el = document.getElementById('new-learning-time');
+    if (el) el.value = getCurrentTimeStr();
+    showToast('已填入現在時間');
+  });
+
+  document.getElementById('btn-now-new-other')?.addEventListener('click', () => {
+    const el = document.getElementById('new-other-time');
+    if (el) el.value = getCurrentTimeStr();
+    showToast('已填入現在時間');
+  });
+
+  document.getElementById('btn-now-new-tomorrow')?.addEventListener('click', () => {
+    const el = document.getElementById('new-tomorrow-time');
+    if (el) el.value = getCurrentTimeStr();
+    showToast('已填入現在時間');
+  });
+
   // 11. 明日待辦清單操作
   const btnAddTomorrow = document.getElementById('btn-add-tomorrow');
   const tomorrowInput = document.getElementById('new-tomorrow-input');
+  const tomorrowTimeInput = document.getElementById('new-tomorrow-time');
   const handleAddTomorrow = () => {
     const desc = tomorrowInput.value.trim();
     if (!desc) return;
+    const timeVal = (tomorrowTimeInput && tomorrowTimeInput.value) ? tomorrowTimeInput.value : '';
     currentDayData.tomorrowTodos.push({
       id: generateId(),
       desc: desc,
-      completed: false
+      completed: false,
+      time: timeVal
     });
     tomorrowInput.value = '';
+    if (tomorrowTimeInput) tomorrowTimeInput.value = getCurrentTimeStr();
     saveCurrentDayData();
     renderTomorrowTodos();
     if (window.lucide) window.lucide.createIcons();
@@ -1661,6 +1733,20 @@ function initEventListeners() {
       return;
     }
 
+    const timeBtn = target.closest('.btn-update-tomorrow-time');
+    if (timeBtn) {
+      const id = timeBtn.getAttribute('data-id');
+      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
+      if (item) {
+        item.time = getCurrentTimeStr();
+        saveCurrentDayData();
+        renderTomorrowTodos();
+        if (window.lucide) window.lucide.createIcons();
+        showToast('已更新為現在時間');
+      }
+      return;
+    }
+
     const delBtn = target.closest('.btn-del-tomorrow');
     if (delBtn) {
       const id = delBtn.getAttribute('data-id');
@@ -1668,6 +1754,19 @@ function initEventListeners() {
       saveCurrentDayData();
       renderTomorrowTodos();
       if (window.lucide) window.lucide.createIcons();
+    }
+  });
+
+  // 明日待辦行內時間輸入即時儲存
+  document.getElementById('tomorrow-todo-list').addEventListener('input', (e) => {
+    const target = e.target;
+    if (target.classList.contains('tomorrow-inline-time')) {
+      const id = target.getAttribute('data-id');
+      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
+      if (item) {
+        item.time = target.value;
+        saveCurrentDayData();
+      }
     }
   });
 
