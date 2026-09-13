@@ -158,8 +158,8 @@ function checkAndInitSampleData() {
       ],
       other: [],
       tomorrowTodos: [
-        { id: generateId(), desc: '追蹤農科專結案審核進度', completed: false },
-        { id: generateId(), desc: '準備下週會議簡報大綱', completed: false }
+        { id: generateId(), tag: '格雷農科專', desc: '追蹤農科專結案審核進度', completed: false, time: '10:00' },
+        { id: generateId(), tag: '工作任務', desc: '準備下週會議簡報大綱', completed: false, time: '14:00' }
       ]
     };
     saveDayData(today, sampleData, false);
@@ -705,11 +705,11 @@ function renderChores() {
 
   currentDayData.chores.forEach(item => {
     const div = document.createElement('div');
-    div.className = `flex items-center justify-between gap-2 p-2 sm:p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-teal-300 transition ${item.completed ? 'item-completed bg-slate-50/80' : ''}`;
+    div.className = 'flex items-center justify-between gap-2 p-2 sm:p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-teal-300 transition';
     div.innerHTML = `
-      <div class="flex items-center gap-2.5 flex-1 min-w-0">
-        <input type="checkbox" class="custom-checkbox chore-checkbox" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
-        <span class="text-xs font-semibold text-slate-800 item-text truncate">${escapeHtml(item.name)}</span>
+      <div class="flex items-center gap-2 flex-1 min-w-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-teal-500 flex-shrink-0"></span>
+        <span class="text-xs font-semibold text-slate-800 truncate">${escapeHtml(item.name)}</span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
@@ -735,19 +735,12 @@ function renderDiet() {
     const row = document.querySelector(`.diet-row[data-diet-key="${mealKey}"]`);
     if (!row || !mealData) return;
 
-    const check = row.querySelector('.diet-check');
     const timeInputs = row.querySelectorAll('.diet-time');
     const contentInput = row.querySelector('.diet-content');
 
-    check.checked = !!mealData.completed;
     timeInputs.forEach(t => t.value = mealData.time || '');
     contentInput.value = mealData.content || '';
-
-    if (mealData.completed) {
-      row.classList.add('item-completed');
-    } else {
-      row.classList.remove('item-completed');
-    }
+    row.classList.remove('item-completed');
   });
 }
 
@@ -761,15 +754,28 @@ function renderTaggedList(listData, containerId, categoryKey, placeholderEmpty) 
     return;
   }
 
+  const isWork = (categoryKey === 'work');
+
   listData.forEach(item => {
     const div = document.createElement('div');
-    div.className = `flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-slate-300 transition ${item.completed ? 'item-completed bg-slate-50/80' : ''}`;
+    // 只有工作才支援完成狀態淡化刪除線
+    div.className = `flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-slate-300 transition ${isWork && item.completed ? 'item-completed bg-slate-50/80' : ''}`;
     
+    // 只有工作才需要 Checkbox
+    const checkboxHtml = isWork
+      ? `<input type="checkbox" class="custom-checkbox item-checkbox" data-category="${categoryKey}" data-id="${item.id}" ${item.completed ? 'checked' : ''} />`
+      : '';
+
+    let tagClass = 'bg-slate-100 text-slate-700 border-slate-200/80';
+    if (categoryKey === 'work') tagClass = 'bg-blue-50 text-blue-700 border-blue-200/80';
+    else if (categoryKey === 'entertainment') tagClass = 'bg-pink-50 text-pink-700 border-pink-200/80';
+    else if (categoryKey === 'learning') tagClass = 'bg-indigo-50 text-indigo-700 border-indigo-200/80';
+
     div.innerHTML = `
       <div class="flex items-center gap-2.5 flex-1 min-w-0">
-        <input type="checkbox" class="custom-checkbox item-checkbox" data-category="${categoryKey}" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
-        <span class="px-2 py-0.5 text-xs font-bold rounded bg-slate-100 text-slate-700 flex-shrink-0 border border-slate-200/80">
-          ${escapeHtml(item.tag || '項目')}
+        ${checkboxHtml}
+        <span class="px-2 py-0.5 text-xs font-bold rounded flex-shrink-0 border ${tagClass}">
+          ${escapeHtml(item.tag || (isWork ? '工作任務' : (categoryKey === 'entertainment' ? '休閒' : '學習')))}
         </span>
         <input type="text" class="item-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none transition py-0.5" data-category="${categoryKey}" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
@@ -813,10 +819,10 @@ function renderOtherList() {
 
   currentDayData.other.forEach(item => {
     const div = document.createElement('div');
-    div.className = `flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-amber-300 transition ${item.completed ? 'item-completed bg-slate-50/80' : ''}`;
+    div.className = 'flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-amber-300 transition';
     div.innerHTML = `
-      <div class="flex items-center gap-2.5 flex-1 min-w-0">
-        <input type="checkbox" class="custom-checkbox item-checkbox" data-category="other" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
+      <div class="flex items-center gap-2 flex-1 min-w-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>
         <input type="text" class="item-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-500 focus:outline-none transition py-0.5" data-category="other" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
@@ -841,16 +847,15 @@ function renderTomorrowTodos() {
   container.innerHTML = '';
 
   if (!currentDayData.tomorrowTodos || currentDayData.tomorrowTodos.length === 0) {
-    container.innerHTML = `<div class="text-xs text-slate-400 py-3 text-center bg-white/70 rounded-xl border border-dashed border-amber-200">尚無明日待辦事項，點擊上方按鈕可一鍵將未完成轉入</div>`;
+    container.innerHTML = `<div class="text-xs text-slate-400 py-3 text-center bg-white/70 rounded-xl border border-dashed border-amber-200">尚無明日待辦事項，點擊上方按鈕可一鍵將未完成工作轉入</div>`;
     return;
   }
 
   currentDayData.tomorrowTodos.forEach(item => {
     const div = document.createElement('div');
-    div.className = `flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-amber-200/90 shadow-2xs hover:border-amber-300 transition ${item.completed ? 'item-completed bg-slate-50/70' : ''}`;
+    div.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-amber-200/90 shadow-2xs hover:border-amber-300 transition';
     div.innerHTML = `
       <div class="flex items-center gap-2 flex-1 min-w-0">
-        <input type="checkbox" class="custom-checkbox tomorrow-checkbox" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
         ${item.tag ? `<span class="px-2 py-0.5 text-xs font-bold rounded bg-amber-100 text-amber-800 flex-shrink-0 border border-amber-200/80">${escapeHtml(item.tag)}</span>` : ''}
         <input type="text" class="tomorrow-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-amber-300 focus:border-amber-500 focus:outline-none transition py-0.5" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
@@ -870,25 +875,17 @@ function renderTomorrowTodos() {
   });
 }
 
-// 計算完成度進度與統計
+// 計算完成度進度與統計（以需追蹤完成狀態的工作任務為基準）
 function calculateDayStats(dayData) {
   let total = 0;
   let completed = 0;
 
-  dayData.chores.forEach(i => { total++; if (i.completed) completed++; });
-
-  ['breakfast', 'lunch', 'dinner', 'snack'].forEach(k => {
-    const m = dayData.diet[k];
-    if (m && m.content && m.content.trim() !== '') {
+  if (Array.isArray(dayData.work)) {
+    dayData.work.forEach(i => {
       total++;
-      if (m.completed) completed++;
-    }
-  });
-
-  dayData.work.forEach(i => { total++; if (i.completed) completed++; });
-  dayData.entertainment.forEach(i => { total++; if (i.completed) completed++; });
-  dayData.learning.forEach(i => { total++; if (i.completed) completed++; });
-  dayData.other.forEach(i => { total++; if (i.completed) completed++; });
+      if (i.completed) completed++;
+    });
+  }
 
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
   return { total, completed, percentage };
@@ -901,7 +898,11 @@ function updateProgressAndStats() {
 
   if (progressBar) progressBar.style.width = `${percentage}%`;
   if (statsText) {
-    statsText.textContent = `今日完成進度：${completed} / ${total} 項目 (${percentage}%)`;
+    if (total === 0) {
+      statsText.textContent = '今日工作進度：尚未建立工作任務';
+    } else {
+      statsText.textContent = `今日工作進度：${completed} / ${total} 項完成 (${percentage}%)`;
+    }
   }
 }
 
@@ -1103,8 +1104,8 @@ function renderHistory() {
     let workHtml = '';
     if (dayItem.work.length > 0) {
       workHtml = dayItem.work.map(w => `
-        <li class="flex items-start gap-1.5 truncate">
-          <span class="text-blue-600 flex-shrink-0 font-bold">·</span>
+        <li class="flex items-start gap-1.5 truncate ${w.completed ? 'line-through text-slate-400' : 'text-slate-700'}">
+          <span class="${w.completed ? 'text-emerald-500' : 'text-blue-600'} flex-shrink-0 font-bold">${w.completed ? '✓' : '·'}</span>
           <span class="truncate">${w.tag ? `<strong>${highlightText(w.tag, term)}</strong>：` : ''}${highlightText(w.desc, term)}</span>
         </li>
       `).join('');
@@ -1115,7 +1116,7 @@ function renderHistory() {
     let entHtml = '';
     if (dayItem.entertainment.length > 0) {
       entHtml = dayItem.entertainment.map(e => `
-        <li class="flex items-start gap-1.5 truncate">
+        <li class="flex items-start gap-1.5 truncate text-slate-700">
           <span class="text-pink-600 flex-shrink-0 font-bold">·</span>
           <span class="truncate">${e.tag ? `<strong>${highlightText(e.tag, term)}</strong>：` : ''}${highlightText(e.desc, term)}</span>
         </li>
@@ -1127,7 +1128,7 @@ function renderHistory() {
     let learnHtml = '';
     if (dayItem.learning.length > 0) {
       learnHtml = dayItem.learning.map(l => `
-        <li class="flex items-start gap-1.5 truncate">
+        <li class="flex items-start gap-1.5 truncate text-slate-700">
           <span class="text-indigo-600 flex-shrink-0 font-bold">·</span>
           <span class="truncate">${l.tag ? `<strong>${highlightText(l.tag, term)}</strong>：` : ''}${highlightText(l.desc, term)}</span>
         </li>
@@ -1150,8 +1151,8 @@ function renderHistory() {
             <span class="text-base font-bold text-slate-900">${dateTitle}</span>
             <span class="text-xs text-slate-400 ml-1.5">${fullDate}</span>
           </div>
-          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${percentage === 100 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
-            完成度 ${percentage}% (${completed}/${total})
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${percentage === 100 && total > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+            工作完成度 ${total === 0 ? '無任務' : `${percentage}% (${completed}/${total})`}
           </span>
         </div>
 
@@ -1440,21 +1441,9 @@ function initEventListeners() {
     showToast(`已記錄家務：${name}`);
   }
 
-  // 家務列表事件 (Checkbox, 自訂時間輸入, 現在時間按鈕, 刪除)
+  // 家務列表事件 (自訂時間輸入, 現在時間按鈕, 刪除)
   document.getElementById('chores-list').addEventListener('click', (e) => {
     const target = e.target;
-    if (target.classList.contains('chore-checkbox')) {
-      const id = target.getAttribute('data-id');
-      const item = currentDayData.chores.find(c => c.id === id);
-      if (item) {
-        item.completed = target.checked;
-        saveCurrentDayData();
-        renderChores();
-        updateProgressAndStats();
-        if (window.lucide) window.lucide.createIcons();
-      }
-      return;
-    }
 
     const timeBtn = target.closest('.btn-update-chore-time');
     if (timeBtn) {
@@ -1476,7 +1465,6 @@ function initEventListeners() {
       currentDayData.chores = currentDayData.chores.filter(c => c.id !== id);
       saveCurrentDayData();
       renderChores();
-      updateProgressAndStats();
       if (window.lucide) window.lucide.createIcons();
     }
   });
@@ -1512,17 +1500,14 @@ function initEventListeners() {
     const row = e.target.closest('.diet-row');
     if (!row) return;
     const mealKey = row.getAttribute('data-diet-key');
-    const check = row.querySelector('.diet-check');
     const timeInput = row.querySelector('.diet-time');
     const contentInput = row.querySelector('.diet-content');
 
     if (currentDayData.diet[mealKey]) {
-      currentDayData.diet[mealKey].completed = check.checked;
       currentDayData.diet[mealKey].time = format24hTime(timeInput.value);
       currentDayData.diet[mealKey].content = contentInput.value;
       saveCurrentDayData();
       renderDiet();
-      updateProgressAndStats();
     }
   });
 
@@ -1554,7 +1539,7 @@ function initEventListeners() {
       id: generateId(),
       tag: tag || '工作任務',
       desc: desc,
-      completed: true,
+      completed: false,
       time: (workTime && workTime.value) ? format24hTime(workTime.value) : getCurrentTimeStr()
     });
     workDesc.value = '';
@@ -1581,14 +1566,13 @@ function initEventListeners() {
       id: generateId(),
       tag: tag || '休閒',
       desc: desc,
-      completed: true,
+      completed: false,
       time: (entTime && entTime.value) ? format24hTime(entTime.value) : getCurrentTimeStr()
     });
     entDesc.value = '';
     entTime.value = getCurrentTimeStr();
     saveCurrentDayData();
     renderEntertainmentList();
-    updateProgressAndStats();
     if (window.lucide) window.lucide.createIcons();
     showToast('已記錄娛樂項目');
   };
@@ -1608,14 +1592,13 @@ function initEventListeners() {
       id: generateId(),
       tag: tag || '學習',
       desc: desc,
-      completed: true,
+      completed: false,
       time: (learnTime && learnTime.value) ? format24hTime(learnTime.value) : getCurrentTimeStr()
     });
     learnDesc.value = '';
     learnTime.value = getCurrentTimeStr();
     saveCurrentDayData();
     renderLearningList();
-    updateProgressAndStats();
     if (window.lucide) window.lucide.createIcons();
     showToast('已記錄學習項目');
   };
@@ -1632,7 +1615,7 @@ function initEventListeners() {
     currentDayData.other.push({
       id: generateId(),
       desc: desc,
-      completed: true,
+      completed: false,
       time: (otherTime && otherTime.value) ? format24hTime(otherTime.value) : getCurrentTimeStr()
     });
     otherDesc.value = '';
@@ -1794,17 +1777,6 @@ function initEventListeners() {
 
   document.getElementById('tomorrow-todo-list').addEventListener('click', (e) => {
     const target = e.target;
-    if (target.classList.contains('tomorrow-checkbox')) {
-      const id = target.getAttribute('data-id');
-      const item = currentDayData.tomorrowTodos.find(x => x.id === id);
-      if (item) {
-        item.completed = target.checked;
-        saveCurrentDayData();
-        renderTomorrowTodos();
-        if (window.lucide) window.lucide.createIcons();
-      }
-      return;
-    }
 
     const timeBtn = target.closest('.btn-update-tomorrow-time');
     if (timeBtn) {
@@ -1863,7 +1835,7 @@ function initEventListeners() {
     }
   });
 
-  // 12. 一鍵將今日未完成事項轉移至明日待辦
+  // 12. 一鍵將今日未完成工作轉移至明日待辦
   const transferUncompleted = () => {
     const uncompletedItems = [];
 
@@ -1874,22 +1846,8 @@ function initEventListeners() {
       });
     });
 
-    currentDayData.learning.filter(l => !l.completed && l.desc).forEach(l => {
-      uncompletedItems.push({
-        tag: l.tag || '學習',
-        desc: l.desc
-      });
-    });
-
-    currentDayData.other.filter(o => !o.completed && o.desc).forEach(o => {
-      uncompletedItems.push({
-        tag: '其他',
-        desc: o.desc
-      });
-    });
-
     if (uncompletedItems.length === 0) {
-      showToast('太棒了！今日所有工作與學習事項均已完成！');
+      showToast('太棒了！今日所有工作任務均已完成！');
       return;
     }
 
