@@ -125,45 +125,67 @@ function createDefaultDayData(dateStr) {
   };
 }
 
-// 初次啟動時，若無任何資料，填入範例資料讓使用者立即體驗
-function checkAndInitSampleData() {
-  const keys = Object.keys(localStorage).filter(k => k.startsWith('daily_review_'));
-  if (keys.length === 0) {
-    const today = getTodayDateStr();
-    const sampleData = {
-      date: today,
-      updatedAt: Date.now(),
-      chores: [
-        { id: generateId(), name: '洗衣服', completed: true, time: '09:00' },
-        { id: generateId(), name: '曬衣服', completed: true, time: '09:40' },
-        { id: generateId(), name: '洗碗', completed: true, time: '13:00' },
-        { id: generateId(), name: '整理回收', completed: true, time: '19:30' }
-      ],
-      diet: {
-        breakfast: { completed: true, time: '08:15', content: '鷹嘴豆起司雞饅頭、米牛奶' },
-        lunch: { completed: true, time: '12:20', content: '牛肉湯麵、小菜乾絲、泡菜' },
-        dinner: { completed: true, time: '18:40', content: '炸春捲河粉、奇異果鳳梨汁' },
-        snack: { completed: false, time: '15:30', content: '' }
-      },
-      work: [
-        { id: generateId(), tag: '格雷農科專', desc: '完成結案報告修改', completed: true, time: '10:30' },
-        { id: generateId(), tag: '格雷SBIR', desc: '確認會計查核時間、回信、承辦聯繫', completed: true, time: '14:15' },
-        { id: generateId(), tag: '格雷創業綻放', desc: '約會議時間', completed: true, time: '16:00' }
-      ],
-      entertainment: [
-        { id: generateId(), tag: '番茄小說', desc: '穿成侯夫人，讓當外室的女主絕望（有空就看一些）', completed: true, time: '21:00' }
-      ],
-      learning: [
-        { id: generateId(), tag: '英文', desc: 'Duolingo、刷刷庫、26秒背單字、Speak', completed: true, time: '22:00' }
-      ],
-      other: [],
-      tomorrowTodos: [
-        { id: generateId(), tag: '格雷農科專', desc: '追蹤農科專結案審核進度', completed: false, time: '10:00' },
-        { id: generateId(), tag: '工作任務', desc: '準備下週會議簡報大綱', completed: false, time: '14:00' }
-      ]
-    };
-    saveDayData(today, sampleData, false);
+// 清理過去寫入的範例假資料
+function cleanSampleData(data) {
+  if (!data) return;
+
+  // 1. 清理飲食範例假資料
+  if (data.diet) {
+    if (data.diet.breakfast && data.diet.breakfast.content === '鷹嘴豆起司雞饅頭、米牛奶') {
+      data.diet.breakfast.content = '';
+    }
+    if (data.diet.lunch && data.diet.lunch.content === '牛肉湯麵、小菜乾絲、泡菜') {
+      data.diet.lunch.content = '';
+    }
+    if (data.diet.dinner && data.diet.dinner.content === '炸春捲河粉、奇異果鳳梨汁') {
+      data.diet.dinner.content = '';
+    }
   }
+
+  // 2. 清理家務範例假資料（使用者要求：家務不要預設任何事項，完全由使用者手動新增）
+  if (Array.isArray(data.chores)) {
+    const sampleChoreNames = ['洗衣服', '曬衣服', '洗碗', '整理回收'];
+    data.chores = data.chores.filter(c => !sampleChoreNames.includes(c.name));
+  }
+
+  // 3. 清理工作範例假資料
+  if (Array.isArray(data.work)) {
+    const sampleWorkDescs = ['完成結案報告修改', '確認會計查核時間、回信、承辦聯繫', '約會議時間'];
+    data.work = data.work.filter(w => !sampleWorkDescs.includes(w.desc));
+  }
+
+  // 4. 清理娛樂與學習範例假資料
+  if (Array.isArray(data.entertainment)) {
+    data.entertainment = data.entertainment.filter(e => e.desc !== '穿成侯夫人，讓當外室的女主絕望（有空就看一些）');
+  }
+  if (Array.isArray(data.learning)) {
+    data.learning = data.learning.filter(l => l.desc !== 'Duolingo、刷刷庫、26秒背單字、Speak');
+  }
+  if (Array.isArray(data.tomorrowTodos)) {
+    data.tomorrowTodos = data.tomorrowTodos.filter(t => t.desc !== '追蹤農科專結案審核進度' && t.desc !== '準備下週會議簡報大綱');
+  }
+}
+
+// 清理歷史儲存中遺留的範例假資料
+function purgeLegacySampleData() {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('daily_review_')) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const d = JSON.parse(raw);
+          cleanSampleData(d);
+          localStorage.setItem(key, JSON.stringify(d));
+        }
+      } catch (e) {}
+    }
+  }
+}
+
+// 初次啟動時，不再預設任何假資料，全數維持乾淨空白
+function checkAndInitSampleData() {
+  purgeLegacySampleData();
 }
 
 // 讀取某日資料
@@ -191,6 +213,10 @@ function loadDayData(dateStr) {
     if (!Array.isArray(data.learning)) data.learning = [];
     if (!Array.isArray(data.other)) data.other = [];
     if (!Array.isArray(data.tomorrowTodos)) data.tomorrowTodos = [];
+    
+    // 主動清理所有範例假資料
+    cleanSampleData(data);
+
     // 清理舊資料中的「昨日待辦」標籤，一律恢復為專案或工作任務
     data.work.forEach(w => {
       if (w.tag === '昨日待辦') w.tag = '工作任務';
@@ -370,6 +396,15 @@ async function performCloudSync(isManual = false) {
     let needsPushToRemote = false;
     let localWasUpdated = false;
     let remoteRecords = (remoteData && remoteData.records) || {};
+    // 清理遠端可能存在的舊範例資料
+    for (const [dKey, rItem] of Object.entries(remoteRecords)) {
+      const hadSample = (rItem.diet?.breakfast?.content === '鷹嘴豆起司雞饅頭、米牛奶') ||
+                        (Array.isArray(rItem.work) && rItem.work.some(w => w.desc === '完成結案報告修改'));
+      if (hadSample) {
+        cleanSampleData(rItem);
+        needsPushToRemote = true;
+      }
+    }
 
     const mergedRecords = { ...remoteRecords };
 
@@ -390,6 +425,7 @@ async function performCloudSync(isManual = false) {
           needsPushToRemote = true;
         } else if (remoteTime > localTime) {
           // 遠端比較新 -> 採用遠端，需更新本地
+          cleanSampleData(remoteItem);
           localStorage.setItem(`daily_review_${dateStr}`, JSON.stringify(remoteItem));
           localWasUpdated = true;
         }
@@ -399,6 +435,7 @@ async function performCloudSync(isManual = false) {
     // 檢查遠端有而本地沒有的天數
     for (const [dateStr, remoteItem] of Object.entries(remoteRecords)) {
       if (!localRecords[dateStr]) {
+        cleanSampleData(remoteItem);
         localStorage.setItem(`daily_review_${dateStr}`, JSON.stringify(remoteItem));
         localWasUpdated = true;
       }
