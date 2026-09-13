@@ -1,11 +1,24 @@
 /**
  * 每日復盤與時間手帳 - Core Application Logic
+ * 支援全平台自適應、歷史復盤翻閱檢索庫、PWA 離線快取
  */
 
 // --- 全域狀態管理 ---
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 let currentDateStr = getTodayDateStr(); // 格式: YYYY-MM-DD
 let currentDayData = null;
+let currentView = 'today'; // 'today' | 'history'
+let historySearchTerm = '';
+let historyRangeFilter = 'all'; // 'all' | '7days' | '30days' | 'thisMonth'
+
+// --- PWA Service Worker 註冊 ---
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.log('Service Worker 註冊略過或受限環境:', err);
+    });
+  });
+}
 
 // 取得今天 YYYY-MM-DD 字串
 function getTodayDateStr() {
@@ -33,6 +46,18 @@ function formatReviewDateTitle(dateStr) {
   const dateObj = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
   const weekday = WEEKDAYS[dateObj.getDay()];
   return `${month}${day} (${weekday})`;
+}
+
+// 將 YYYY-MM-DD 轉成 2026/09/09 (三) 完整格式
+function formatFullDateTitle(dateStr) {
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
+  const dateObj = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
+  const weekday = WEEKDAYS[dateObj.getDay()];
+  return `${year}/${month}/${day} (${weekday})`;
 }
 
 // 生成唯一 ID
@@ -131,6 +156,82 @@ function loadDayData(dateStr) {
 // 儲存某日資料
 function saveDayData(dateStr, data) {
   localStorage.setItem(`daily_review_${dateStr}`, JSON.stringify(data));
+  updateHistoryTotalBadge();
+}
+
+// 取得所有歷史紀錄清單（由新到舊排序）
+function getAllHistoryRecords() {
+  const records = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('daily_review_')) {
+      const dateStr = key.replace('daily_review_', '');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const data = loadDayData(dateStr);
+        records.push(data);
+      }
+    }
+  }
+  // 按照日期倒序排列 (最新的在前)
+  records.sort((a, b) => b.date.localeCompare(a.date));
+  return records;
+}
+
+// 更新歷史天數徽章
+function updateHistoryTotalBadge() {
+  const count = getAllHistoryRecords().length;
+  const badge = document.getElementById('history-total-badge');
+  if (badge) badge.textContent = count;
+}
+
+// --- 視圖切換 (今日記錄 vs 歷史翻閱) ---
+function switchMainView(view) {
+  currentView = view;
+  const todayView = document.getElementById('view-today');
+  const historyView = document.getElementById('view-history');
+  const tabBtnToday = document.getElementById('tab-btn-today');
+  const tabBtnHistory = document.getElementById('tab-btn-history');
+  const mobileNavToday = document.getElementById('mobile-nav-today');
+  const mobileNavHistory = document.getElementById('mobile-nav-history');
+  const dateController = document.getElementById('header-date-controller');
+  const progressContainer = document.getElementById('header-progress-container');
+  const statsContainer = document.getElementById('header-stats-container');
+
+  if (view === 'today') {
+    todayView.classList.remove('hidden');
+    historyView.classList.add('hidden');
+
+    tabBtnToday.className = 'px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-emerald-700 flex items-center gap-1.5';
+    tabBtnHistory.className = 'px-3 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
+
+    if (mobileNavToday) {
+      mobileNavToday.className = 'flex flex-col items-center gap-0.5 py-1 px-3 text-emerald-600';
+      mobileNavHistory.className = 'flex flex-col items-center gap-0.5 py-1 px-3 text-slate-400 hover:text-slate-800';
+    }
+
+    if (dateController) dateController.classList.remove('opacity-40', 'pointer-events-none');
+    if (progressContainer) progressContainer.classList.remove('hidden');
+    if (statsContainer) statsContainer.classList.remove('hidden');
+
+    render();
+  } else {
+    todayView.classList.add('hidden');
+    historyView.classList.remove('hidden');
+
+    tabBtnToday.className = 'px-3 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
+    tabBtnHistory.className = 'px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-emerald-700 flex items-center gap-1.5';
+
+    if (mobileNavToday) {
+      mobileNavToday.className = 'flex flex-col items-center gap-0.5 py-1 px-3 text-slate-400 hover:text-slate-800';
+      mobileNavHistory.className = 'flex flex-col items-center gap-0.5 py-1 px-3 text-emerald-600';
+    }
+
+    if (dateController) dateController.classList.add('opacity-40', 'pointer-events-none');
+    if (progressContainer) progressContainer.classList.add('hidden');
+    if (statsContainer) statsContainer.classList.add('hidden');
+
+    renderHistory();
+  }
 }
 
 // --- DOM 渲染與更新 ---
@@ -144,6 +245,7 @@ function render() {
   renderOtherList();
   renderTomorrowTodos();
   updateProgressAndStats();
+  updateHistoryTotalBadge();
 
   if (window.lucide) {
     window.lucide.createIcons();
@@ -179,26 +281,26 @@ function renderChores() {
   container.innerHTML = '';
 
   if (currentDayData.chores.length === 0) {
-    container.innerHTML = `<div class="text-xs text-slate-400 py-2 text-center bg-white/60 rounded-lg border border-dashed border-slate-200">今日尚無家務紀錄，可點擊上方快捷標籤或下方新增</div>`;
+    container.innerHTML = `<div class="text-xs text-slate-400 py-2.5 text-center bg-white/60 rounded-xl border border-dashed border-slate-200">今日尚無家務紀錄，可點擊上方快捷標籤或下方新增</div>`;
     return;
   }
 
   currentDayData.chores.forEach(item => {
     const div = document.createElement('div');
-    div.className = `flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200 shadow-2xs hover:border-teal-300 transition ${item.completed ? 'item-completed bg-slate-50/80' : ''}`;
+    div.className = `flex items-center justify-between gap-2 p-2 sm:p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs hover:border-teal-300 transition ${item.completed ? 'item-completed bg-slate-50/80' : ''}`;
     div.innerHTML = `
       <div class="flex items-center gap-2.5 flex-1 min-w-0">
         <input type="checkbox" class="custom-checkbox chore-checkbox" data-id="${item.id}" ${item.completed ? 'checked' : ''} />
         <span class="text-xs font-semibold text-slate-800 item-text truncate">${escapeHtml(item.name)}</span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <div class="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 text-[11px] mono-font">
+        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-500 text-[11px] mono-font">
           <span>${item.time || '--:--'}</span>
           <button type="button" class="btn-update-chore-time text-slate-400 hover:text-teal-600" data-id="${item.id}" title="更新為現在時間">
             <i data-lucide="clock" class="w-3 h-3"></i>
           </button>
         </div>
-        <button type="button" class="btn-del-chore text-slate-300 hover:text-rose-500 p-1 transition" data-id="${item.id}" title="刪除">
+        <button type="button" class="btn-del-chore text-slate-300 hover:text-rose-500 p-1.5 transition" data-id="${item.id}" title="刪除">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
         </button>
       </div>
@@ -216,11 +318,11 @@ function renderDiet() {
     if (!row || !mealData) return;
 
     const check = row.querySelector('.diet-check');
-    const timeInput = row.querySelector('.diet-time');
+    const timeInputs = row.querySelectorAll('.diet-time');
     const contentInput = row.querySelector('.diet-content');
 
     check.checked = !!mealData.completed;
-    timeInput.value = mealData.time || '';
+    timeInputs.forEach(t => t.value = mealData.time || '');
     contentInput.value = mealData.content || '';
 
     if (mealData.completed) {
@@ -342,16 +444,16 @@ function renderTomorrowTodos() {
 }
 
 // 計算完成度進度與統計
-function updateProgressAndStats() {
+function calculateDayStats(dayData) {
   let total = 0;
   let completed = 0;
 
   // 家務
-  currentDayData.chores.forEach(i => { total++; if (i.completed) completed++; });
+  dayData.chores.forEach(i => { total++; if (i.completed) completed++; });
 
   // 飲食 (有填寫內容才計入統計)
   ['breakfast', 'lunch', 'dinner', 'snack'].forEach(k => {
-    const m = currentDayData.diet[k];
+    const m = dayData.diet[k];
     if (m && m.content && m.content.trim() !== '') {
       total++;
       if (m.completed) completed++;
@@ -359,18 +461,23 @@ function updateProgressAndStats() {
   });
 
   // 工作
-  currentDayData.work.forEach(i => { total++; if (i.completed) completed++; });
+  dayData.work.forEach(i => { total++; if (i.completed) completed++; });
 
   // 娛樂
-  currentDayData.entertainment.forEach(i => { total++; if (i.completed) completed++; });
+  dayData.entertainment.forEach(i => { total++; if (i.completed) completed++; });
 
   // 學習
-  currentDayData.learning.forEach(i => { total++; if (i.completed) completed++; });
+  dayData.learning.forEach(i => { total++; if (i.completed) completed++; });
 
   // 其他
-  currentDayData.other.forEach(i => { total++; if (i.completed) completed++; });
+  dayData.other.forEach(i => { total++; if (i.completed) completed++; });
 
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+  return { total, completed, percentage };
+}
+
+function updateProgressAndStats() {
+  const { total, completed, percentage } = calculateDayStats(currentDayData);
   const progressBar = document.getElementById('daily-progress-bar');
   const statsText = document.getElementById('stats-completion-text');
 
@@ -381,15 +488,15 @@ function updateProgressAndStats() {
 }
 
 // --- 復盤文字生成引擎 (對齊使用者上傳格式) ---
-function generateReviewText() {
-  const title = formatReviewDateTitle(currentDateStr);
+function generateReviewTextForData(data) {
+  const title = formatReviewDateTitle(data.date);
   const lines = [title];
 
   // 1. 生活
   lines.push('生活');
   // 1.1 家務
-  if (currentDayData.chores && currentDayData.chores.length > 0) {
-    const choresText = currentDayData.chores.map(c => c.name).join('、');
+  if (data.chores && data.chores.length > 0) {
+    const choresText = data.chores.map(c => c.name).join('、');
     lines.push(`  · 家務：${choresText}`);
   } else {
     lines.push('  · 家務：');
@@ -397,22 +504,22 @@ function generateReviewText() {
 
   // 1.2 飲食
   lines.push('  · 飲食：');
-  const bf = currentDayData.diet.breakfast?.content || '';
-  const lu = currentDayData.diet.lunch?.content || '';
-  const di = currentDayData.diet.dinner?.content || '';
-  const sn = currentDayData.diet.snack?.content || '';
+  const bf = data.diet.breakfast?.content || '';
+  const lu = data.diet.lunch?.content || '';
+  const di = data.diet.dinner?.content || '';
+  const sn = data.diet.snack?.content || '';
 
   lines.push(`  - 早餐：${bf}`);
   lines.push(`  - 午餐：${lu}`);
   lines.push(`  - 晚餐：${di}`);
-  if (sn.trim()) {
+  if (sn && sn.trim()) {
     lines.push(`  - 點心/飲品：${sn}`);
   }
 
   // 2. 工作
   lines.push('工作');
-  if (currentDayData.work && currentDayData.work.length > 0) {
-    currentDayData.work.forEach(w => {
+  if (data.work && data.work.length > 0) {
+    data.work.forEach(w => {
       const tag = w.tag ? `${w.tag}：` : '';
       lines.push(`  · ${tag}${w.desc || ''}`);
     });
@@ -422,8 +529,8 @@ function generateReviewText() {
 
   // 3. 娛樂
   lines.push('娛樂');
-  if (currentDayData.entertainment && currentDayData.entertainment.length > 0) {
-    currentDayData.entertainment.forEach(e => {
+  if (data.entertainment && data.entertainment.length > 0) {
+    data.entertainment.forEach(e => {
       const tag = e.tag ? `${e.tag}：` : '';
       lines.push(`  · ${tag}${e.desc || ''}`);
     });
@@ -433,8 +540,8 @@ function generateReviewText() {
 
   // 4. 學習
   lines.push('學習');
-  if (currentDayData.learning && currentDayData.learning.length > 0) {
-    currentDayData.learning.forEach(l => {
+  if (data.learning && data.learning.length > 0) {
+    data.learning.forEach(l => {
       const tag = l.tag ? `${l.tag}：` : '';
       lines.push(`  · ${tag}${l.desc || ''}`);
     });
@@ -444,8 +551,8 @@ function generateReviewText() {
 
   // 5. 其他事件
   lines.push('其他事件');
-  if (currentDayData.other && currentDayData.other.length > 0) {
-    currentDayData.other.forEach(o => {
+  if (data.other && data.other.length > 0) {
+    data.other.forEach(o => {
       lines.push(`  · ${o.desc || ''}`);
     });
   } else {
@@ -453,10 +560,10 @@ function generateReviewText() {
   }
 
   // 6. 明日待辦事項 (若有)
-  if (currentDayData.tomorrowTodos && currentDayData.tomorrowTodos.length > 0) {
+  if (data.tomorrowTodos && data.tomorrowTodos.length > 0) {
     lines.push('');
     lines.push('明日待辦事項');
-    currentDayData.tomorrowTodos.forEach(t => {
+    data.tomorrowTodos.forEach(t => {
       lines.push(`  · ${t.desc || ''}`);
     });
   }
@@ -464,11 +571,21 @@ function generateReviewText() {
   return lines.join('\n');
 }
 
+function generateReviewText() {
+  return generateReviewTextForData(currentDayData);
+}
+
 // 彈出復盤視窗
-function showReviewModal() {
-  const text = generateReviewText();
+function showReviewModal(textToDisplay = null, customTitle = null) {
+  const text = textToDisplay || generateReviewText();
   const output = document.getElementById('review-text-output');
   output.textContent = text;
+  
+  const titleEl = document.getElementById('modal-review-title');
+  if (titleEl) {
+    titleEl.textContent = customTitle || `復盤文本預覽 - ${formatReviewDateTitle(currentDateStr)}`;
+  }
+
   document.getElementById('review-modal').classList.remove('hidden');
   document.getElementById('copy-status-indicator').classList.add('hidden');
   if (window.lucide) window.lucide.createIcons();
@@ -488,8 +605,6 @@ async function copyReviewText() {
     showToast('復盤文本已成功複製到剪貼簿！');
     if (window.lucide) window.lucide.createIcons();
   } catch (err) {
-    console.error('複製失敗', err);
-    // 退避方案
     const ta = document.createElement('textarea');
     ta.value = text;
     document.body.appendChild(ta);
@@ -498,6 +613,254 @@ async function copyReviewText() {
     document.body.removeChild(ta);
     showToast('復盤文本已成功複製到剪貼簿！');
   }
+}
+
+// ==========================================
+// 📚 歷史復盤翻閱與全文搜尋核心邏輯
+// ==========================================
+
+// 高亮搜尋關鍵字
+function highlightText(str, term) {
+  if (!str) return '';
+  const escaped = escapeHtml(str);
+  if (!term || !term.trim()) return escaped;
+  const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+// 篩選與渲染歷史紀錄
+function renderHistory() {
+  const container = document.getElementById('history-cards-container');
+  const emptyState = document.getElementById('history-empty-state');
+  container.innerHTML = '';
+
+  const allRecords = getAllHistoryRecords();
+  const now = new Date();
+  const todayStr = getTodayDateStr();
+
+  // 1. 時間區間過濾
+  const filteredRecords = allRecords.filter(item => {
+    if (historyRangeFilter === 'all') return true;
+    
+    const itemDate = new Date(item.date);
+    const diffDays = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
+
+    if (historyRangeFilter === '7days') {
+      return diffDays >= 0 && diffDays <= 7;
+    }
+    if (historyRangeFilter === '30days') {
+      return diffDays >= 0 && diffDays <= 30;
+    }
+    if (historyRangeFilter === 'thisMonth') {
+      return item.date.startsWith(todayStr.slice(0, 7));
+    }
+    return true;
+  });
+
+  // 2. 關鍵字搜尋過濾
+  const term = historySearchTerm.trim().toLowerCase();
+  const matchedRecords = filteredRecords.filter(item => {
+    if (!term) return true;
+    // 檢查日期
+    if (item.date.toLowerCase().includes(term)) return true;
+    const dateTitle = formatReviewDateTitle(item.date).toLowerCase();
+    if (dateTitle.includes(term)) return true;
+
+    // 檢查家務
+    if (item.chores.some(c => c.name.toLowerCase().includes(term))) return true;
+
+    // 檢查飲食
+    const dietVals = Object.values(item.diet || {}).map(d => (d.content || '').toLowerCase());
+    if (dietVals.some(v => v.includes(term))) return true;
+
+    // 檢查工作
+    if (item.work.some(w => (w.tag || '').toLowerCase().includes(term) || (w.desc || '').toLowerCase().includes(term))) return true;
+
+    // 檢查娛樂
+    if (item.entertainment.some(e => (e.tag || '').toLowerCase().includes(term) || (e.desc || '').toLowerCase().includes(term))) return true;
+
+    // 檢查學習
+    if (item.learning.some(l => (l.tag || '').toLowerCase().includes(term) || (l.desc || '').toLowerCase().includes(term))) return true;
+
+    // 檢查其他
+    if (item.other.some(o => (o.desc || '').toLowerCase().includes(term))) return true;
+
+    // 檢查明日待辦
+    if (item.tomorrowTodos.some(t => (t.desc || '').toLowerCase().includes(term))) return true;
+
+    return false;
+  });
+
+  if (matchedRecords.length === 0) {
+    emptyState.classList.remove('hidden');
+    return;
+  }
+  emptyState.classList.add('hidden');
+
+  // 渲染卡片
+  matchedRecords.forEach(dayItem => {
+    const card = document.createElement('div');
+    card.className = 'history-card bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-5 flex flex-col justify-between';
+
+    const { total, completed, percentage } = calculateDayStats(dayItem);
+    const dateTitle = formatReviewDateTitle(dayItem.date);
+    const fullDate = formatFullDateTitle(dayItem.date);
+
+    // 家務摘錄
+    const choreNames = dayItem.chores.map(c => highlightText(c.name, term)).join('、') || '無';
+
+    // 飲食摘錄
+    const dietSummary = [
+      dayItem.diet.breakfast?.content ? `早：${highlightText(dayItem.diet.breakfast.content, term)}` : '',
+      dayItem.diet.lunch?.content ? `午：${highlightText(dayItem.diet.lunch.content, term)}` : '',
+      dayItem.diet.dinner?.content ? `晚：${highlightText(dayItem.diet.dinner.content, term)}` : ''
+    ].filter(Boolean).join(' | ') || '無填寫';
+
+    // 工作摘錄
+    let workHtml = '';
+    if (dayItem.work.length > 0) {
+      workHtml = dayItem.work.map(w => `
+        <li class="flex items-start gap-1.5 truncate">
+          <span class="text-blue-600 flex-shrink-0 font-bold">·</span>
+          <span class="truncate">${w.tag ? `<strong>${highlightText(w.tag, term)}</strong>：` : ''}${highlightText(w.desc, term)}</span>
+        </li>
+      `).join('');
+    } else {
+      workHtml = '<li class="text-slate-400">無工作記錄</li>';
+    }
+
+    // 娛樂摘錄
+    let entHtml = '';
+    if (dayItem.entertainment.length > 0) {
+      entHtml = dayItem.entertainment.map(e => `
+        <li class="flex items-start gap-1.5 truncate">
+          <span class="text-pink-600 flex-shrink-0 font-bold">·</span>
+          <span class="truncate">${e.tag ? `<strong>${highlightText(e.tag, term)}</strong>：` : ''}${highlightText(e.desc, term)}</span>
+        </li>
+      `).join('');
+    } else {
+      entHtml = '<li class="text-slate-400">無娛樂記錄</li>';
+    }
+
+    // 學習摘錄
+    let learnHtml = '';
+    if (dayItem.learning.length > 0) {
+      learnHtml = dayItem.learning.map(l => `
+        <li class="flex items-start gap-1.5 truncate">
+          <span class="text-indigo-600 flex-shrink-0 font-bold">·</span>
+          <span class="truncate">${l.tag ? `<strong>${highlightText(l.tag, term)}</strong>：` : ''}${highlightText(l.desc, term)}</span>
+        </li>
+      `).join('');
+    } else {
+      learnHtml = '<li class="text-slate-400">無學習記錄</li>';
+    }
+
+    // 明日待辦摘錄
+    let todoHtml = '';
+    if (dayItem.tomorrowTodos.length > 0) {
+      todoHtml = dayItem.tomorrowTodos.map(t => `
+        <li class="truncate text-amber-900/90 font-medium">· ${highlightText(t.desc, term)}</li>
+      `).join('');
+    }
+
+    card.innerHTML = `
+      <div>
+        <!-- 卡片頭部：日期與完成度標籤 -->
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+          <div>
+            <span class="text-base font-bold text-slate-900">${dateTitle}</span>
+            <span class="text-xs text-slate-400 ml-1.5">${fullDate}</span>
+          </div>
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${percentage === 100 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+            完成度 ${percentage}% (${completed}/${total})
+          </span>
+        </div>
+
+        <!-- 內容摘要區域 (還原圖片清單版型) -->
+        <div class="space-y-2.5 text-xs text-slate-700">
+          <!-- 生活 -->
+          <div class="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
+            <span class="font-bold text-teal-800 block mb-1">🌿 生活</span>
+            <p class="text-slate-600 truncate"><strong class="text-slate-700">家務：</strong>${choreNames}</p>
+            <p class="text-slate-600 truncate mt-0.5"><strong class="text-slate-700">飲食：</strong>${dietSummary}</p>
+          </div>
+
+          <!-- 工作 -->
+          <div class="p-2 rounded-xl border border-slate-100">
+            <span class="font-bold text-blue-800 block mb-1">💼 工作</span>
+            <ul class="space-y-0.5">${workHtml}</ul>
+          </div>
+
+          <!-- 娛樂與學習 (並排或精簡) -->
+          <div class="grid grid-cols-2 gap-2">
+            <div class="p-2 rounded-xl border border-slate-100 bg-pink-50/30">
+              <span class="font-bold text-pink-800 block mb-1">🎮 娛樂</span>
+              <ul class="space-y-0.5">${entHtml}</ul>
+            </div>
+            <div class="p-2 rounded-xl border border-slate-100 bg-indigo-50/30">
+              <span class="font-bold text-indigo-800 block mb-1">📖 學習</span>
+              <ul class="space-y-0.5">${learnHtml}</ul>
+            </div>
+          </div>
+
+          ${todoHtml ? `
+            <div class="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/60 text-xs">
+              <span class="font-bold text-amber-800 block mb-0.5">📌 預定明日待辦：</span>
+              <ul class="space-y-0.5">${todoHtml}</ul>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <!-- 卡片底部按鈕 -->
+      <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+        <button type="button" class="btn-history-copy text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 p-1" data-date="${dayItem.date}">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span>複製文本</span>
+        </button>
+
+        <div class="flex items-center gap-1.5">
+          <button type="button" class="btn-history-load px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition flex items-center gap-1" data-date="${dayItem.date}">
+            <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            <span>載入編輯</span>
+          </button>
+          <button type="button" class="btn-history-delete p-1.5 text-slate-300 hover:text-rose-600 rounded-lg transition" data-date="${dayItem.date}" title="刪除此日紀錄">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+// 匯出當前篩選期間的所有復盤統整報告
+function exportHistorySummary() {
+  const allRecords = getAllHistoryRecords();
+  const now = new Date();
+  const todayStr = getTodayDateStr();
+
+  const filtered = allRecords.filter(item => {
+    if (historyRangeFilter === 'all') return true;
+    const itemDate = new Date(item.date);
+    const diffDays = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
+    if (historyRangeFilter === '7days') return diffDays >= 0 && diffDays <= 7;
+    if (historyRangeFilter === '30days') return diffDays >= 0 && diffDays <= 30;
+    if (historyRangeFilter === 'thisMonth') return item.date.startsWith(todayStr.slice(0, 7));
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    showToast('目前篩選區間無任何記錄可匯出');
+    return;
+  }
+
+  const reports = filtered.map(d => generateReviewTextForData(d));
+  const fullContent = reports.join('\n\n====================\n\n');
+  showReviewModal(fullContent, `歷史復盤統整報告 (${filtered.length} 天)`);
 }
 
 // Toast 提示
@@ -539,6 +902,28 @@ function saveCurrentDayData() {
 
 // --- 事件監聽器註冊 ---
 function initEventListeners() {
+  // 1. 視圖切換標籤 (今日記錄 vs 歷史翻閱)
+  document.getElementById('tab-btn-today').addEventListener('click', () => switchMainView('today'));
+  document.getElementById('tab-btn-history').addEventListener('click', () => switchMainView('history'));
+
+  // 2. 行動端底部導航
+  const navToday = document.getElementById('mobile-nav-today');
+  const navHistory = document.getElementById('mobile-nav-history');
+  const navExport = document.getElementById('mobile-nav-export');
+  const navBackup = document.getElementById('mobile-nav-backup');
+
+  if (navToday) navToday.addEventListener('click', () => switchMainView('today'));
+  if (navHistory) navHistory.addEventListener('click', () => switchMainView('history'));
+  if (navExport) navExport.addEventListener('click', () => showReviewModal());
+  if (navBackup) navBackup.addEventListener('click', () => {
+    document.getElementById('mobile-backup-modal').classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  });
+
+  document.getElementById('btn-close-backup-modal').addEventListener('click', () => {
+    document.getElementById('mobile-backup-modal').classList.add('hidden');
+  });
+
   // 日期切換
   document.getElementById('date-picker').addEventListener('change', (e) => {
     if (e.target.value) {
@@ -570,7 +955,7 @@ function initEventListeners() {
     switchDate(`${y}-${m}-${day}`);
   });
 
-  // 1. 家務快捷標籤點擊
+  // 3. 家務快捷標籤點擊
   document.querySelectorAll('.quick-chore-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.getAttribute('data-name');
@@ -607,10 +992,9 @@ function initEventListeners() {
     showToast(`已記錄家務：${name}`);
   }
 
-  // 家務列表內事件委派 (Checkbox, 更新時間, 刪除)
+  // 家務列表事件 (Checkbox, 更新時間, 刪除)
   document.getElementById('chores-list').addEventListener('click', (e) => {
     const target = e.target;
-    // 勾選
     if (target.classList.contains('chore-checkbox')) {
       const id = target.getAttribute('data-id');
       const item = currentDayData.chores.find(c => c.id === id);
@@ -624,7 +1008,6 @@ function initEventListeners() {
       return;
     }
 
-    // 更新時間按鈕
     const timeBtn = target.closest('.btn-update-chore-time');
     if (timeBtn) {
       const id = timeBtn.getAttribute('data-id');
@@ -639,7 +1022,6 @@ function initEventListeners() {
       return;
     }
 
-    // 刪除按鈕
     const delBtn = target.closest('.btn-del-chore');
     if (delBtn) {
       const id = delBtn.getAttribute('data-id');
@@ -651,7 +1033,7 @@ function initEventListeners() {
     }
   });
 
-  // 2. 飲食輸入監聽
+  // 4. 飲食輸入監聽
   document.getElementById('diet-list').addEventListener('change', (e) => {
     const row = e.target.closest('.diet-row');
     if (!row) return;
@@ -670,14 +1052,13 @@ function initEventListeners() {
     }
   });
 
-  // 飲食現在時間按鈕
   document.querySelectorAll('#diet-list .btn-now-time').forEach(btn => {
     btn.addEventListener('click', () => {
       const row = btn.closest('.diet-row');
-      const timeInput = row.querySelector('.diet-time');
+      const timeInputs = row.querySelectorAll('.diet-time');
       const mealKey = row.getAttribute('data-diet-key');
       const now = getCurrentTimeStr();
-      timeInput.value = now;
+      timeInputs.forEach(t => t.value = now);
       if (currentDayData.diet[mealKey]) {
         currentDayData.diet[mealKey].time = now;
         saveCurrentDayData();
@@ -686,7 +1067,7 @@ function initEventListeners() {
     });
   });
 
-  // 3. 工作新增
+  // 5. 工作新增
   const btnAddWork = document.getElementById('btn-add-work');
   const workTag = document.getElementById('new-work-tag');
   const workDesc = document.getElementById('new-work-desc');
@@ -713,7 +1094,7 @@ function initEventListeners() {
   btnAddWork.addEventListener('click', handleAddWork);
   workDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddWork(); });
 
-  // 4. 娛樂新增
+  // 6. 娛樂新增
   const btnAddEnt = document.getElementById('btn-add-entertainment');
   const entTag = document.getElementById('new-entertainment-tag');
   const entDesc = document.getElementById('new-entertainment-desc');
@@ -740,7 +1121,7 @@ function initEventListeners() {
   btnAddEnt.addEventListener('click', handleAddEnt);
   entDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddEnt(); });
 
-  // 5. 學習新增
+  // 7. 學習新增
   const btnAddLearn = document.getElementById('btn-add-learning');
   const learnTag = document.getElementById('new-learning-tag');
   const learnDesc = document.getElementById('new-learning-desc');
@@ -767,7 +1148,7 @@ function initEventListeners() {
   btnAddLearn.addEventListener('click', handleAddLearn);
   learnDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddLearn(); });
 
-  // 6. 其他事件新增
+  // 8. 其他事件新增
   const btnAddOther = document.getElementById('btn-add-other');
   const otherDesc = document.getElementById('new-other-desc');
   const otherTime = document.getElementById('new-other-time');
@@ -791,7 +1172,7 @@ function initEventListeners() {
   btnAddOther.addEventListener('click', handleAddOther);
   otherDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddOther(); });
 
-  // 通用列表監聽器（工作、娛樂、學習、其他事件）：勾選、編輯、重設時間、刪除
+  // 9. 通用列表監聽器（工作、娛樂、學習、其他事件）：勾選、編輯、重設時間、刪除
   const listContainerIds = ['work-list', 'entertainment-list', 'learning-list', 'other-list'];
   listContainerIds.forEach(cId => {
     const el = document.getElementById(cId);
@@ -799,7 +1180,6 @@ function initEventListeners() {
 
     el.addEventListener('click', (e) => {
       const target = e.target;
-      // 勾選
       if (target.classList.contains('item-checkbox')) {
         const cat = target.getAttribute('data-category');
         const id = target.getAttribute('data-id');
@@ -814,7 +1194,6 @@ function initEventListeners() {
         return;
       }
 
-      // 重設為當前時間按鈕
       const timeBtn = target.closest('.btn-update-item-time');
       if (timeBtn) {
         const cat = timeBtn.getAttribute('data-category');
@@ -830,7 +1209,6 @@ function initEventListeners() {
         return;
       }
 
-      // 刪除按鈕
       const delBtn = target.closest('.btn-del-item');
       if (delBtn) {
         const cat = delBtn.getAttribute('data-category');
@@ -845,7 +1223,6 @@ function initEventListeners() {
       }
     });
 
-    // 文字即時修改
     el.addEventListener('input', (e) => {
       const target = e.target;
       if (target.classList.contains('item-inline-desc')) {
@@ -868,7 +1245,7 @@ function initEventListeners() {
     });
   });
 
-  // 7. 明日待辦清單操作
+  // 10. 明日待辦清單操作
   const btnAddTomorrow = document.getElementById('btn-add-tomorrow');
   const tomorrowInput = document.getElementById('new-tomorrow-input');
   const handleAddTomorrow = () => {
@@ -912,21 +1289,18 @@ function initEventListeners() {
     }
   });
 
-  // 8. 一鍵將今日未完成事項轉移至明日待辦
+  // 11. 一鍵將今日未完成事項轉移至明日待辦
   const transferUncompleted = () => {
     const uncompletedItems = [];
 
-    // 檢查工作
     currentDayData.work.filter(w => !w.completed && w.desc).forEach(w => {
       uncompletedItems.push(`[工作] ${w.tag ? w.tag + '：' : ''}${w.desc}`);
     });
 
-    // 檢查學習
     currentDayData.learning.filter(l => !l.completed && l.desc).forEach(l => {
       uncompletedItems.push(`[學習] ${l.tag ? l.tag + '：' : ''}${l.desc}`);
     });
 
-    // 檢查其他
     currentDayData.other.filter(o => !o.completed && o.desc).forEach(o => {
       uncompletedItems.push(`[其他] ${o.desc}`);
     });
@@ -936,7 +1310,6 @@ function initEventListeners() {
       return;
     }
 
-    // 將未完成項加入 tomorrowTodos
     let count = 0;
     uncompletedItems.forEach(desc => {
       const exists = currentDayData.tomorrowTodos.some(t => t.desc === desc);
@@ -959,7 +1332,7 @@ function initEventListeners() {
   document.getElementById('btn-transfer-to-tomorrow').addEventListener('click', transferUncompleted);
   document.getElementById('btn-copy-uncompleted-to-tomorrow').addEventListener('click', transferUncompleted);
 
-  // 9. 將昨日預排待辦匯入今日工作
+  // 12. 將昨日預排待辦匯入今日工作
   document.getElementById('btn-import-yesterday-todo').addEventListener('click', () => {
     const parts = currentDateStr.split('-');
     const d = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
@@ -1002,34 +1375,101 @@ function initEventListeners() {
     }
   });
 
-  // 10. 復盤視窗開啟與複製
-  document.getElementById('btn-export-text').addEventListener('click', showReviewModal);
-  const mobileBtn = document.getElementById('btn-export-text-mobile');
-  if (mobileBtn) mobileBtn.addEventListener('click', showReviewModal);
-
+  // 13. 復盤視窗開啟與複製
+  document.getElementById('btn-export-text').addEventListener('click', () => showReviewModal());
   document.getElementById('btn-close-modal').addEventListener('click', hideReviewModal);
   document.getElementById('btn-cancel-modal').addEventListener('click', hideReviewModal);
   document.getElementById('btn-copy-clipboard').addEventListener('click', copyReviewText);
 
-  // 點擊遮罩關閉 Modal
   document.getElementById('review-modal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('review-modal')) {
       hideReviewModal();
     }
   });
 
-  // 11. 清空當日紀錄
-  document.getElementById('btn-clear-day').addEventListener('click', () => {
+  // 14. 歷史翻閱庫監聽 (搜尋、篩選、卡片點擊)
+  const searchInput = document.getElementById('history-search-input');
+  const clearSearchBtn = document.getElementById('btn-clear-search');
+
+  searchInput.addEventListener('input', (e) => {
+    historySearchTerm = e.target.value;
+    if (historySearchTerm) {
+      clearSearchBtn.classList.remove('hidden');
+    } else {
+      clearSearchBtn.classList.add('hidden');
+    }
+    renderHistory();
+  });
+
+  clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    historySearchTerm = '';
+    clearSearchBtn.classList.add('hidden');
+    renderHistory();
+  });
+
+  // 篩選區間按鈕點擊
+  document.querySelectorAll('.history-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.history-filter-btn').forEach(b => {
+        b.className = 'history-filter-btn px-3 py-1.5 text-xs rounded-lg font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700';
+      });
+      btn.className = 'history-filter-btn px-3 py-1.5 text-xs rounded-lg font-medium transition bg-emerald-600 text-white';
+      historyRangeFilter = btn.getAttribute('data-range');
+      renderHistory();
+    });
+  });
+
+  // 匯出歷史區間統整報告
+  document.getElementById('btn-export-history-summary').addEventListener('click', exportHistorySummary);
+
+  // 歷史卡片內操作委派 (複製、載入編輯、刪除)
+  document.getElementById('history-cards-container').addEventListener('click', (e) => {
+    const copyBtn = e.target.closest('.btn-history-copy');
+    if (copyBtn) {
+      const dateStr = copyBtn.getAttribute('data-date');
+      const data = loadDayData(dateStr);
+      const text = generateReviewTextForData(data);
+      showReviewModal(text, `歷史復盤 - ${formatReviewDateTitle(dateStr)}`);
+      return;
+    }
+
+    const loadBtn = e.target.closest('.btn-history-load');
+    if (loadBtn) {
+      const dateStr = loadBtn.getAttribute('data-date');
+      switchDate(dateStr);
+      switchMainView('today');
+      showToast(`已載入 ${formatReviewDateTitle(dateStr)} 的紀錄`);
+      return;
+    }
+
+    const delBtn = e.target.closest('.btn-history-delete');
+    if (delBtn) {
+      const dateStr = delBtn.getAttribute('data-date');
+      if (confirm(`確定要刪除 ${dateStr} 的復盤紀錄嗎？刪除後無法復原。`)) {
+        localStorage.removeItem(`daily_review_${dateStr}`);
+        renderHistory();
+        updateHistoryTotalBadge();
+        showToast(`已刪除 ${dateStr} 的紀錄`);
+      }
+    }
+  });
+
+  // 15. 清空當日紀錄 (電腦端與手機端)
+  const handleClearDay = () => {
     if (confirm(`確定要清空 ${currentDateStr} 的所有紀錄嗎？清空後無法復原。`)) {
       currentDayData = createDefaultDayData(currentDateStr);
       saveCurrentDayData();
       render();
       showToast('已清空當日紀錄');
+      document.getElementById('mobile-backup-modal').classList.add('hidden');
     }
-  });
+  };
+  document.getElementById('btn-clear-day').addEventListener('click', handleClearDay);
+  document.getElementById('btn-mobile-clear-day').addEventListener('click', handleClearDay);
 
-  // 12. 匯出備份 (JSON)
-  document.getElementById('btn-backup-json').addEventListener('click', () => {
+  // 16. 匯出備份 (JSON)
+  const handleBackupJson = () => {
     const backup = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -1045,10 +1485,13 @@ function initEventListeners() {
     a.click();
     URL.revokeObjectURL(url);
     showToast('完整備份檔案已下載！');
-  });
+    document.getElementById('mobile-backup-modal').classList.add('hidden');
+  };
+  document.getElementById('btn-backup-json').addEventListener('click', handleBackupJson);
+  document.getElementById('btn-mobile-backup-json').addEventListener('click', handleBackupJson);
 
-  // 13. 匯入備份 (JSON)
-  document.getElementById('file-import-json').addEventListener('change', (e) => {
+  // 17. 匯入備份 (JSON)
+  const handleImportJson = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -1065,13 +1508,17 @@ function initEventListeners() {
         showToast(`成功還原 ${count} 天的歷史資料！`);
         currentDayData = loadDayData(currentDateStr);
         render();
+        renderHistory();
+        document.getElementById('mobile-backup-modal').classList.add('hidden');
       } catch (err) {
         alert('備份檔案格式不正確，無法匯入。');
       }
     };
     reader.readAsText(file);
     e.target.value = '';
-  });
+  };
+  document.getElementById('file-import-json').addEventListener('change', handleImportJson);
+  document.getElementById('mobile-file-import-json').addEventListener('change', handleImportJson);
 
   // 實時更新頂部時鐘
   setInterval(() => {

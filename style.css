@@ -1,19 +1,39 @@
-/* 自訂樣式與微調 */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* 每日復盤手帳 - 樣式表 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
 
 body {
   font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: #f8fafc;
   color: #1e293b;
+  min-height: 100vh;
 }
 
 .mono-font {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* 防止 iOS 輸入時自動放大畫面 (要求 font-size >= 16px 或適當控制) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="time"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 14px !important;
+  }
+}
+
 /* 自訂淡入與微互動動畫 */
 .fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
 @keyframes fadeIn {
@@ -35,12 +55,13 @@ body {
   color: #94a3b8 !important;
 }
 
-/* 自訂 Checkbox 樣式 */
+/* 自訂 Checkbox 樣式 (符合手指觸控規格) */
 .custom-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  min-width: 1.35rem;
   border: 2px solid #cbd5e1;
   border-radius: 0.375rem;
   outline: none;
@@ -76,7 +97,30 @@ body {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
   font-family: 'Noto Sans TC', monospace;
   white-space: pre-wrap;
-  line-height: 1.7;
+  line-height: 1.75;
+}
+
+/* 歷史卡片 */
+.history-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.history-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -4px rgba(0, 0, 0, 0.07);
+}
+
+/* 搜尋關鍵字高亮 */
+mark.search-highlight {
+  background-color: #fef08a;
+  color: #854d0e;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+
+/* 手機版底部導航欄 */
+.mobile-bottom-nav {
+  padding-bottom: max(0.5rem, var(--safe-bottom));
 }
 
 /* 滾動條美化 */

@@ -1,0 +1,17 @@
+{
+  "name": "每日復盤手帳",
+  "short_name": "每日復盤",
+  "description": "個人生活、工作、娛樂、學習時間記錄與每日復盤工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
