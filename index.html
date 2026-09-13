@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>每日復盤與時間手帳</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800 antialiased pb-20">
+
+  <!-- 頂部導航與日期列 -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <!-- 標題與當前狀態 -->
+      <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200">
+            <i data-lucide="calendar-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold text-slate-900 tracking-tight">每日復盤手帳</h1>
+            <p class="text-xs text-slate-500 font-medium">記錄當下時間 · 追蹤完成度 · 整理明日待辦</p>
+          </div>
+        </div>
+
+        <!-- 手機版快速切換按鈕 -->
+        <div class="flex md:hidden items-center gap-1.5">
+          <button id="btn-export-text-mobile" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 shadow-sm">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+            <span>生成復盤</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 日期控制器 -->
+      <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+        <button id="prev-day-btn" title="前一天" class="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-white rounded-lg transition">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+
+        <div class="flex items-center gap-2 px-2">
+          <input type="date" id="date-picker" class="bg-transparent text-sm font-bold text-slate-800 focus:outline-none cursor-pointer" />
+          <span id="date-badge" class="px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full">--/-- (一)</span>
+        </div>
+
+        <button id="next-day-btn" title="後一天" class="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-white rounded-lg transition">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+
+        <button id="today-btn" class="px-2 py-1 text-xs font-medium text-slate-700 hover:text-emerald-700 hover:bg-white rounded-lg border border-slate-200/80 transition">
+          今天
+        </button>
+      </div>
+
+      <!-- 右側工具列 (生成復盤、備份、數據操作) -->
+      <div class="hidden md:flex items-center gap-2">
+        <button id="btn-transfer-to-tomorrow" class="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg flex items-center gap-1.5 transition" title="自動將今日未完成的事項加入明日待辦">
+          <i data-lucide="arrow-right-circle" class="w-4 h-4"></i>
+          未完成轉明日
+        </button>
+
+        <button id="btn-export-text" class="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-1.5 shadow-sm shadow-emerald-200 transition">
+          <i data-lucide="share-2" class="w-4 h-4"></i>
+          生成復盤文本
+        </button>
+
+        <!-- 備份設定下拉 -->
+        <div class="relative group">
+          <button class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="更多備份與操作">
+            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+          </button>
+          <div class="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 hidden group-hover:block hover:block z-50">
+            <button id="btn-backup-json" class="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+              <i data-lucide="download" class="w-4 h-4 text-slate-500"></i> 匯出完整備份 (JSON)
+            </button>
+            <label class="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer">
+              <i data-lucide="upload" class="w-4 h-4 text-slate-500"></i> 匯入備份資料
+              <input type="file" id="file-import-json" accept=".json" class="hidden" />
+            </label>
+            <hr class="my-1 border-slate-100" />
+            <button id="btn-clear-day" class="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+              <i data-lucide="trash-2" class="w-4 h-4 text-rose-500"></i> 清空當日紀錄
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 進度條 -->
+    <div class="w-full bg-slate-200/80 h-1.5 relative overflow-hidden">
+      <div id="daily-progress-bar" class="bg-emerald-500 h-full transition-all duration-300 w-0"></div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1 flex items-center justify-between text-[11px] text-slate-500">
+      <span id="stats-completion-text">今日完成進度：0 / 0 項目 (0%)</span>
+      <span id="current-clock-display" class="mono-font font-medium text-slate-600">當下時間：--:--:--</span>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- 左側/中間雙欄：五大核心分類 -->
+      <div class="lg:col-span-2 space-y-6">
+
+        <!-- 1. 生活 (家務與飲食) -->
+        <section class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-sm">
+                <i data-lucide="heart-pulse" class="w-4 h-4"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-bold text-slate-900">生活</h2>
+                <p class="text-xs text-slate-500">家務整理、每日三餐與飲水</p>
+              </div>
+            </div>
+            <span class="text-xs text-teal-800 bg-teal-50 px-2.5 py-1 rounded-full font-medium">生活日常</span>
+          </div>
+
+          <div class="space-y-5">
+            <!-- 1.1 家務子分類 -->
+            <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-teal-600"></i>
+                  <span class="text-sm font-bold text-slate-800">家務</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <!-- 快捷常用家務標籤按鈕 -->
+                  <span class="text-[11px] text-slate-400 mr-1 hidden sm:inline">快捷填入：</span>
+                  <div class="flex flex-wrap gap-1" id="quick-chores-container">
+                    <button type="button" class="quick-chore-btn px-2 py-0.5 text-xs bg-white hover:bg-teal-50 text-slate-600 hover:text-teal-700 rounded border border-slate-200 transition" data-name="洗衣服">洗衣服</button>
+                    <button type="button" class="quick-chore-btn px-2 py-0.5 text-xs bg-white hover:bg-teal-50 text-slate-600 hover:text-teal-700 rounded border border-slate-200 transition" data-name="曬衣服">曬衣服</button>
+                    <button type="button" class="quick-chore-btn px-2 py-0.5 text-xs bg-white hover:bg-teal-50 text-slate-600 hover:text-teal-700 rounded border border-slate-200 transition" data-name="洗碗">洗碗</button>
+                    <button type="button" class="quick-chore-btn px-2 py-0.5 text-xs bg-white hover:bg-teal-50 text-slate-600 hover:text-teal-700 rounded border border-slate-200 transition" data-name="整理回收">整理回收</button>
+                    <button type="button" class="quick-chore-btn px-2 py-0.5 text-xs bg-white hover:bg-teal-50 text-slate-600 hover:text-teal-700 rounded border border-slate-200 transition" data-name="掃地拖地">掃拖</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 家務清單容器 -->
+              <div id="chores-list" class="space-y-2 mb-3">
+                <!-- 動態注入 -->
+              </div>
+
+              <!-- 新增家務輸入條 -->
+              <div class="flex items-center gap-2 pt-2 border-t border-slate-200/50">
+                <input type="text" id="new-chore-input" placeholder="輸入家務項目（例：整理書桌、吸塵...）" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500" />
+                <button type="button" id="btn-add-chore" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  <span>記錄</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 1.2 飲食子分類 -->
+            <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-200/70">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="utensils" class="w-4 h-4 text-teal-600"></i>
+                  <span class="text-sm font-bold text-slate-800">飲食記錄</span>
+                </div>
+                <span class="text-[11px] text-slate-500">記錄早中晚三餐及當下時間</span>
+              </div>
+
+              <!-- 飲食固定格子清單 (早餐、午餐、晚餐、點心/飲料) -->
+              <div id="diet-list" class="space-y-2.5">
+                <!-- 早餐 -->
+                <div class="diet-row bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="breakfast">
+                  <div class="flex items-center gap-2 sm:w-28 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-breakfast" />
+                    <label for="diet-check-breakfast" class="text-xs font-bold text-slate-800 cursor-pointer">早餐</label>
+                  </div>
+                  <div class="flex items-center gap-1.5 sm:w-28 flex-shrink-0">
+                    <input type="time" class="diet-time mono-font text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 w-24 text-slate-700" value="08:00" />
+                    <button type="button" class="btn-now-time p-1 text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                      <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                  <input type="text" class="diet-content flex-1 px-2.5 py-1 bg-slate-50/50 border border-slate-200 rounded text-xs placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="例：鷹嘴豆起司雞饅頭、米牛奶" />
+                </div>
+
+                <!-- 午餐 -->
+                <div class="diet-row bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="lunch">
+                  <div class="flex items-center gap-2 sm:w-28 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-lunch" />
+                    <label for="diet-check-lunch" class="text-xs font-bold text-slate-800 cursor-pointer">午餐</label>
+                  </div>
+                  <div class="flex items-center gap-1.5 sm:w-28 flex-shrink-0">
+                    <input type="time" class="diet-time mono-font text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 w-24 text-slate-700" value="12:30" />
+                    <button type="button" class="btn-now-time p-1 text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                      <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                  <input type="text" class="diet-content flex-1 px-2.5 py-1 bg-slate-50/50 border border-slate-200 rounded text-xs placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="例：牛肉湯麵、小菜乾絲、泡菜" />
+                </div>
+
+                <!-- 晚餐 -->
+                <div class="diet-row bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="dinner">
+                  <div class="flex items-center gap-2 sm:w-28 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-dinner" />
+                    <label for="diet-check-dinner" class="text-xs font-bold text-slate-800 cursor-pointer">晚餐</label>
+                  </div>
+                  <div class="flex items-center gap-1.5 sm:w-28 flex-shrink-0">
+                    <input type="time" class="diet-time mono-font text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 w-24 text-slate-700" value="18:30" />
+                    <button type="button" class="btn-now-time p-1 text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                      <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                  <input type="text" class="diet-content flex-1 px-2.5 py-1 bg-slate-50/50 border border-slate-200 rounded text-xs placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="例：炸春捲河粉、奇異果鳳梨汁" />
+                </div>
+
+                <!-- 點心 / 飲料 / 加餐 (選填) -->
+                <div class="diet-row bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="snack">
+                  <div class="flex items-center gap-2 sm:w-28 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-snack" />
+                    <label for="diet-check-snack" class="text-xs font-bold text-slate-800 cursor-pointer">點心/飲品</label>
+                  </div>
+                  <div class="flex items-center gap-1.5 sm:w-28 flex-shrink-0">
+                    <input type="time" class="diet-time mono-font text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 w-24 text-slate-700" value="15:00" />
+                    <button type="button" class="btn-now-time p-1 text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                      <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                  <input type="text" class="diet-content flex-1 px-2.5 py-1 bg-slate-50/50 border border-slate-200 rounded text-xs placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="例：無糖黑咖啡、堅果一把、水 2000ml" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. 工作 (預留格子填入專案與項目) -->
+        <section class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                <i data-lucide="briefcase" class="w-4 h-4"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-bold text-slate-900">工作</h2>
+                <p class="text-xs text-slate-500">預留專案/客戶格子，分項填入工作成果與進度</p>
+              </div>
+            </div>
+            <span class="text-xs text-blue-800 bg-blue-50 px-2.5 py-1 rounded-full font-medium">工作任務</span>
+          </div>
+
+          <!-- 項目清單 -->
+          <div id="work-list" class="space-y-2 mb-3">
+            <!-- 動態注入 -->
+          </div>
+
+          <!-- 新增工作輸入組件 (預留專案格 + 內容細項 + 當前時間) -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="new-work-tag" placeholder="專案/標題 (例：格雷農科專)" class="sm:w-36 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+            <input type="text" id="new-work-desc" placeholder="具體工作內容 (例：完成結案報告修改、承辦聯繫...)" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+            <div class="flex items-center gap-1.5">
+              <input type="time" id="new-work-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-1.5 w-24 text-slate-700" />
+              <button type="button" id="btn-add-work" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>新增</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. 娛樂 (預留格子填入類別與內容) -->
+        <section class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-pink-100 text-pink-700 flex items-center justify-center font-bold text-sm">
+                <i data-lucide="gamepad-2" class="w-4 h-4"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-bold text-slate-900">娛樂</h2>
+                <p class="text-xs text-slate-500">閱讀小說、追劇觀影、放鬆休閒</p>
+              </div>
+            </div>
+            <span class="text-xs text-pink-800 bg-pink-50 px-2.5 py-1 rounded-full font-medium">休閒時光</span>
+          </div>
+
+          <!-- 項目清單 -->
+          <div id="entertainment-list" class="space-y-2 mb-3">
+            <!-- 動態注入 -->
+          </div>
+
+          <!-- 新增娛樂輸入組件 -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="new-entertainment-tag" placeholder="類別 (例：番茄小說 / 追劇)" class="sm:w-36 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
+            <input type="text" id="new-entertainment-desc" placeholder="詳細內容 (例：穿成侯夫人，讓當外室的女主絕望...)" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
+            <div class="flex items-center gap-1.5">
+              <input type="time" id="new-entertainment-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-1.5 w-24 text-slate-700" />
+              <button type="button" id="btn-add-entertainment" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>新增</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. 學習 (預留格子填入項目與內容) -->
+        <section class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-bold text-slate-900">學習</h2>
+                <p class="text-xs text-slate-500">語言技能、閱讀進修、個人成長</p>
+              </div>
+            </div>
+            <span class="text-xs text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full font-medium">自我提升</span>
+          </div>
+
+          <!-- 項目清單 -->
+          <div id="learning-list" class="space-y-2 mb-3">
+            <!-- 動態注入 -->
+          </div>
+
+          <!-- 新增學習輸入組件 -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="new-learning-tag" placeholder="項目 (例：英文 / 程式 / 閱讀)" class="sm:w-36 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none" />
+            <input type="text" id="new-learning-desc" placeholder="學習內容 (例：Duolingo、刷刷庫、26秒背單字、Speak...)" class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none" />
+            <div class="flex items-center gap-1.5">
+              <input type="time" id="new-learning-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-1.5 w-24 text-slate-700" />
+              <button type="button" id="btn-add-learning" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>新增</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. 其他事件 -->
+        <section class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                <i data-lucide="tag" class="w-4 h-4"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-bold text-slate-900">其他事件</h2>
+                <p class="text-xs text-slate-500">突發雜項、外出去處、隨手筆記</p>
+              </div>
+            </div>
+            <span class="text-xs text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full font-medium">其他雜項</span>
+          </div>
+
+          <!-- 項目清單 -->
+          <div id="other-list" class="space-y-2 mb-3">
+            <!-- 動態注入 -->
+          </div>
+
+          <!-- 新增其他事件輸入組件 -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="new-other-desc" placeholder="事件內容細項..." class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none" />
+            <div class="flex items-center gap-1.5">
+              <input type="time" id="new-other-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-1.5 w-24 text-slate-700" />
+              <button type="button" id="btn-add-other" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>新增</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- 右側欄：明日待辦事項 & 今日摘要統計 -->
+      <div class="space-y-6">
+
+        <!-- 明日待辦事項卡片 -->
+        <section class="bg-gradient-to-b from-amber-50/50 to-white rounded-2xl p-5 border border-amber-200 shadow-sm sticky top-24">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-amber-200/80">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-bold text-slate-900">明日待辦事項</h2>
+                <p class="text-xs text-slate-500">規劃隔日重點，保持清晰節奏</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 快速行動快捷按鈕 -->
+          <div class="mb-4 flex flex-col gap-2">
+            <button id="btn-copy-uncompleted-to-tomorrow" class="w-full py-2 px-3 bg-amber-100/80 hover:bg-amber-200/80 text-amber-900 border border-amber-300/80 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-700"></i>
+              <span>一鍵將今日未完成帶入明日待辦</span>
+            </button>
+            
+            <button id="btn-import-yesterday-todo" class="w-full py-1.5 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition" title="如果今天是昨天規劃的明天，可直接將預排待辦加入今日任務">
+              <i data-lucide="history" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span>將昨日預排的待辦匯入今日工作</span>
+            </button>
+          </div>
+
+          <!-- 待辦事項清單 -->
+          <div id="tomorrow-todo-list" class="space-y-2 mb-3 max-h-72 overflow-y-auto pr-1">
+            <!-- 動態注入 -->
+          </div>
+
+          <!-- 新增明日待辦輸入 -->
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
+            <input type="text" id="new-tomorrow-input" placeholder="新增明日待辦事項..." class="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500" />
+            <button type="button" id="btn-add-tomorrow" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>新增</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- 今日復盤小提示卡片 -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm text-xs text-slate-600 space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-800">
+            <i data-lucide="info" class="w-4 h-4 text-emerald-600"></i>
+            <span>使用小撇步</span>
+          </div>
+          <ul class="list-disc pl-4 space-y-1.5 text-slate-500">
+            <li>每次點擊<strong>「記錄」</strong>或<strong>「新增」</strong>時，系統會自動填入<strong>當下時間</strong>。</li>
+            <li>可點擊每項旁邊的時間圖示 <i data-lucide="clock" class="inline w-3 h-3 text-slate-400"></i> 隨時重設為現在時間。</li>
+            <li>勾選完成後會有劃線標記，並同步更新頂部完成率進度條。</li>
+            <li>點擊<strong>「生成復盤文本」</strong>可直接產出如同筆記格式的純文字，一鍵複製貼入通訊軟體或 Notion！</li>
+          </ul>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 復盤文本預覽彈出視窗 (Modal) -->
+  <div id="review-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-text" class="w-5 h-5 text-emerald-600"></i>
+          <h3 class="text-base font-bold text-slate-900">每日復盤文本預覽</h3>
+        </div>
+        <button id="btn-close-modal" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 flex-1 overflow-y-auto space-y-4">
+        <p class="text-xs text-slate-500">依照標準格式整理當日生活、工作、娛樂、學習及明日待辦，可直接一鍵複製：</p>
+        
+        <!-- 復盤紙卡排版 -->
+        <div id="review-text-output" class="review-preview-paper p-5 rounded-xl text-slate-800 text-sm select-all font-mono leading-relaxed bg-slate-50 border border-slate-200">
+          <!-- 動態文字產生 -->
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <span id="copy-status-indicator" class="text-xs font-medium text-emerald-600 hidden flex items-center gap-1">
+          <i data-lucide="check" class="w-4 h-4"></i> 已複製到剪貼簿！
+        </span>
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="btn-cancel-modal" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition">
+            關閉
+          </button>
+          <button id="btn-copy-clipboard" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            一鍵複製全文
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast 通知提示 -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2">
+    <i data-lucide="info" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-message">提示訊息</span>
+  </div>
+
+  <!-- JavaScript 腳本 -->
+  <script src="app.js"></script>
+</body>
+</html>
