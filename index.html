@@ -202,9 +202,9 @@
               <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-200/50">
                 <input type="text" id="new-chore-input" placeholder="輸入家務項目（例：擦桌子、吸塵...）" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500" />
                 <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-                  <div class="flex items-center gap-1">
-                    <input type="time" id="new-chore-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
-                    <button type="button" id="btn-now-new-chore" class="p-2 text-slate-400 hover:text-teal-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+                  <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 shadow-2xs">
+                    <input type="time" id="new-chore-time" class="mono-font text-xs bg-transparent w-28 sm:w-32 text-slate-700 focus:outline-none cursor-pointer" title="可自訂時間" />
+                    <button type="button" id="btn-now-new-chore" class="p-1 text-slate-400 hover:text-teal-600 rounded transition" title="更新為現在時間">
                       <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
@@ -230,21 +230,13 @@
               <div id="diet-list" class="space-y-2.5">
                 <!-- 早餐 -->
                 <div class="diet-row bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="breakfast">
-                  <div class="flex items-center justify-between sm:justify-start gap-2 sm:w-28 flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                      <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-breakfast" />
-                      <label for="diet-check-breakfast" class="text-xs font-bold text-slate-800 cursor-pointer">早餐</label>
-                    </div>
-                    <div class="flex sm:hidden items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                      <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="08:00" />
-                      <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                      </button>
-                    </div>
+                  <div class="flex items-center gap-2 w-20 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-breakfast" />
+                    <label for="diet-check-breakfast" class="text-xs font-bold text-slate-800 cursor-pointer">早餐</label>
                   </div>
-                  <div class="hidden sm:flex items-center gap-1 sm:w-28 flex-shrink-0 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="08:00" />
-                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font flex-shrink-0 self-start sm:self-auto">
+                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-28 sm:w-32 focus:outline-none cursor-pointer" value="08:00" title="點擊自訂時間" />
+                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600 p-0.5" title="更新為現在時間">
                       <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
@@ -253,21 +245,13 @@
 
                 <!-- 午餐 -->
                 <div class="diet-row bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="lunch">
-                  <div class="flex items-center justify-between sm:justify-start gap-2 sm:w-28 flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                      <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-lunch" />
-                      <label for="diet-check-lunch" class="text-xs font-bold text-slate-800 cursor-pointer">午餐</label>
-                    </div>
-                    <div class="flex sm:hidden items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                      <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="12:30" />
-                      <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                      </button>
-                    </div>
+                  <div class="flex items-center gap-2 w-20 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-lunch" />
+                    <label for="diet-check-lunch" class="text-xs font-bold text-slate-800 cursor-pointer">午餐</label>
                   </div>
-                  <div class="hidden sm:flex items-center gap-1 sm:w-28 flex-shrink-0 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="12:30" />
-                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font flex-shrink-0 self-start sm:self-auto">
+                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-28 sm:w-32 focus:outline-none cursor-pointer" value="12:30" title="點擊自訂時間" />
+                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600 p-0.5" title="更新為現在時間">
                       <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
@@ -276,21 +260,13 @@
 
                 <!-- 晚餐 -->
                 <div class="diet-row bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="dinner">
-                  <div class="flex items-center justify-between sm:justify-start gap-2 sm:w-28 flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                      <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-dinner" />
-                      <label for="diet-check-dinner" class="text-xs font-bold text-slate-800 cursor-pointer">晚餐</label>
-                    </div>
-                    <div class="flex sm:hidden items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                      <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="18:30" />
-                      <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                      </button>
-                    </div>
+                  <div class="flex items-center gap-2 w-20 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-dinner" />
+                    <label for="diet-check-dinner" class="text-xs font-bold text-slate-800 cursor-pointer">晚餐</label>
                   </div>
-                  <div class="hidden sm:flex items-center gap-1 sm:w-28 flex-shrink-0 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="18:30" />
-                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font flex-shrink-0 self-start sm:self-auto">
+                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-28 sm:w-32 focus:outline-none cursor-pointer" value="18:30" title="點擊自訂時間" />
+                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600 p-0.5" title="更新為現在時間">
                       <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
@@ -299,21 +275,13 @@
 
                 <!-- 點心 / 飲料 / 加餐 -->
                 <div class="diet-row bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2" data-diet-key="snack">
-                  <div class="flex items-center justify-between sm:justify-start gap-2 sm:w-28 flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                      <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-snack" />
-                      <label for="diet-check-snack" class="text-xs font-bold text-slate-800 cursor-pointer">點心/飲品</label>
-                    </div>
-                    <div class="flex sm:hidden items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                      <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="15:00" />
-                      <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
-                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                      </button>
-                    </div>
+                  <div class="flex items-center gap-2 w-20 flex-shrink-0">
+                    <input type="checkbox" class="diet-check custom-checkbox" id="diet-check-snack" />
+                    <label for="diet-check-snack" class="text-xs font-bold text-slate-800 cursor-pointer truncate">點心飲品</label>
                   </div>
-                  <div class="hidden sm:flex items-center gap-1 sm:w-28 flex-shrink-0 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-20 text-slate-700" value="15:00" />
-                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600" title="更新為現在時間">
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font flex-shrink-0 self-start sm:self-auto">
+                    <input type="time" class="diet-time mono-font text-xs bg-transparent w-28 sm:w-32 focus:outline-none cursor-pointer" value="15:00" title="點擊自訂時間" />
+                    <button type="button" class="btn-now-time text-slate-400 hover:text-teal-600 p-0.5" title="更新為現在時間">
                       <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
@@ -350,9 +318,9 @@
             <input type="text" id="new-work-desc" placeholder="具體工作內容 (例：完成結案報告修改、承辦聯繫...)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
             <!-- 工作新增欄位 (可自訂時間 + 現在時間) -->
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <div class="flex items-center gap-1">
-                <input type="time" id="new-work-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
-                <button type="button" id="btn-now-new-work" class="p-2 text-slate-400 hover:text-blue-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 shadow-2xs">
+                <input type="time" id="new-work-time" class="mono-font text-xs bg-transparent w-28 sm:w-32 text-slate-700 focus:outline-none cursor-pointer" title="可自訂時間" />
+                <button type="button" id="btn-now-new-work" class="p-1 text-slate-400 hover:text-blue-600 rounded transition" title="更新為現在時間">
                   <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -389,9 +357,9 @@
             <input type="text" id="new-entertainment-tag" placeholder="類別 (例：番茄小說 / 追劇)" class="sm:w-36 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
             <input type="text" id="new-entertainment-desc" placeholder="詳細內容 (例：穿成侯夫人，讓當外室的女主絕望...)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-pink-500 focus:outline-none" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <div class="flex items-center gap-1">
-                <input type="time" id="new-entertainment-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
-                <button type="button" id="btn-now-new-entertainment" class="p-2 text-slate-400 hover:text-pink-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 shadow-2xs">
+                <input type="time" id="new-entertainment-time" class="mono-font text-xs bg-transparent w-28 sm:w-32 text-slate-700 focus:outline-none cursor-pointer" title="可自訂時間" />
+                <button type="button" id="btn-now-new-entertainment" class="p-1 text-slate-400 hover:text-pink-600 rounded transition" title="更新為現在時間">
                   <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -428,9 +396,9 @@
             <input type="text" id="new-learning-tag" placeholder="項目 (例：英文 / 程式 / 閱讀)" class="sm:w-36 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none" />
             <input type="text" id="new-learning-desc" placeholder="學習內容 (例：Duolingo、刷刷庫、26秒背單字、Speak...)" class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <div class="flex items-center gap-1">
-                <input type="time" id="new-learning-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
-                <button type="button" id="btn-now-new-learning" class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 shadow-2xs">
+                <input type="time" id="new-learning-time" class="mono-font text-xs bg-transparent w-28 sm:w-32 text-slate-700 focus:outline-none cursor-pointer" title="可自訂時間" />
+                <button type="button" id="btn-now-new-learning" class="p-1 text-slate-400 hover:text-indigo-600 rounded transition" title="更新為現在時間">
                   <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -466,9 +434,9 @@
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-2">
             <input type="text" id="new-other-desc" placeholder="事件內容細項..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <div class="flex items-center gap-1">
-                <input type="time" id="new-other-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂時間" />
-                <button type="button" id="btn-now-new-other" class="p-2 text-slate-400 hover:text-amber-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="更新為現在時間">
+              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 shadow-2xs">
+                <input type="time" id="new-other-time" class="mono-font text-xs bg-transparent w-28 sm:w-32 text-slate-700 focus:outline-none cursor-pointer" title="可自訂時間" />
+                <button type="button" id="btn-now-new-other" class="p-1 text-slate-400 hover:text-amber-600 rounded transition" title="更新為現在時間">
                   <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
@@ -521,9 +489,9 @@
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-200">
             <input type="text" id="new-tomorrow-input" placeholder="新增明日待辦事項..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500" />
             <div class="flex items-center gap-1.5 justify-between sm:justify-start">
-              <div class="flex items-center gap-1">
-                <input type="time" id="new-tomorrow-time" class="mono-font text-xs bg-white border border-slate-200 rounded-lg px-2 py-2 w-24 text-slate-700" title="可自訂預計時間（選填）" />
-                <button type="button" id="btn-now-new-tomorrow" class="p-2 text-slate-400 hover:text-amber-600 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" title="填入現在時間">
+              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 shadow-2xs">
+                <input type="time" id="new-tomorrow-time" class="mono-font text-xs bg-transparent w-28 sm:w-32 text-slate-700 focus:outline-none cursor-pointer" title="可自訂預計時間（選填）" />
+                <button type="button" id="btn-now-new-tomorrow" class="p-1 text-slate-400 hover:text-amber-600 rounded transition" title="填入現在時間">
                   <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                 </button>
               </div>

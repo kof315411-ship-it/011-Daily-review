@@ -672,10 +672,10 @@ function renderChores() {
         <span class="text-xs font-semibold text-slate-800 item-text truncate">${escapeHtml(item.name)}</span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600 text-xs mono-font">
-          <input type="time" class="chore-inline-time bg-transparent text-xs w-16 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂時間" />
-          <button type="button" class="btn-update-chore-time text-slate-400 hover:text-teal-600" data-id="${item.id}" title="更新為現在時間">
-            <i data-lucide="clock" class="w-3 h-3"></i>
+        <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
+          <input type="time" class="chore-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂時間" />
+          <button type="button" class="btn-update-chore-time text-slate-400 hover:text-teal-600 p-0.5" data-id="${item.id}" title="更新為現在時間">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
         </div>
         <button type="button" class="btn-del-chore text-slate-300 hover:text-rose-500 p-1.5 transition" data-id="${item.id}" title="刪除">
@@ -734,10 +734,10 @@ function renderTaggedList(listData, containerId, categoryKey, placeholderEmpty) 
         <input type="text" class="item-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none transition py-0.5" data-category="${categoryKey}" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
       <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600 text-xs mono-font">
-          <input type="time" class="item-inline-time bg-transparent text-xs w-16 focus:outline-none" data-category="${categoryKey}" data-id="${item.id}" value="${item.time || ''}" />
-          <button type="button" class="btn-update-item-time text-slate-400 hover:text-blue-600" data-category="${categoryKey}" data-id="${item.id}" title="重設為現在時間">
-            <i data-lucide="clock" class="w-3 h-3"></i>
+        <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
+          <input type="time" class="item-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-category="${categoryKey}" data-id="${item.id}" value="${item.time || ''}" />
+          <button type="button" class="btn-update-item-time text-slate-400 hover:text-blue-600 p-0.5" data-category="${categoryKey}" data-id="${item.id}" title="重設為現在時間">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
         </div>
         <button type="button" class="btn-del-item text-slate-300 hover:text-rose-500 p-1.5 transition" data-category="${categoryKey}" data-id="${item.id}" title="刪除">
@@ -780,10 +780,10 @@ function renderOtherList() {
         <input type="text" class="item-inline-desc flex-1 text-xs text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-500 focus:outline-none transition py-0.5" data-category="other" data-id="${item.id}" value="${escapeHtml(item.desc || '')}" placeholder="點擊編輯內容..." />
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600 text-xs mono-font">
-          <input type="time" class="item-inline-time bg-transparent text-xs w-16 focus:outline-none" data-category="other" data-id="${item.id}" value="${item.time || ''}" />
-          <button type="button" class="btn-update-item-time text-slate-400 hover:text-amber-600" data-category="other" data-id="${item.id}" title="重設為現在時間">
-            <i data-lucide="clock" class="w-3 h-3"></i>
+        <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
+          <input type="time" class="item-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-category="other" data-id="${item.id}" value="${item.time || ''}" />
+          <button type="button" class="btn-update-item-time text-slate-400 hover:text-amber-600 p-0.5" data-category="other" data-id="${item.id}" title="重設為現在時間">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
         </div>
         <button type="button" class="btn-del-item text-slate-300 hover:text-rose-500 p-1.5 transition" data-category="other" data-id="${item.id}" title="刪除">
@@ -814,10 +814,10 @@ function renderTomorrowTodos() {
         <span class="text-xs text-slate-800 item-text flex-1 truncate">${escapeHtml(item.desc)}</span>
       </div>
       <div class="flex items-center justify-end gap-2 flex-shrink-0 self-end sm:self-auto">
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 text-slate-600 text-xs mono-font">
-          <input type="time" class="tomorrow-inline-time bg-transparent text-xs w-16 focus:outline-none" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂預排時間" />
-          <button type="button" class="btn-update-tomorrow-time text-slate-400 hover:text-amber-600" data-id="${item.id}" title="填入現在時間">
-            <i data-lucide="clock" class="w-3 h-3"></i>
+        <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-xs mono-font">
+          <input type="time" class="tomorrow-inline-time bg-transparent text-xs w-28 sm:w-32 focus:outline-none cursor-pointer" data-id="${item.id}" value="${item.time || ''}" title="點擊自訂預排時間" />
+          <button type="button" class="btn-update-tomorrow-time text-slate-400 hover:text-amber-600 p-0.5" data-id="${item.id}" title="填入現在時間">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
           </button>
         </div>
         <button type="button" class="btn-del-tomorrow text-slate-300 hover:text-rose-500 p-1.5 transition" data-id="${item.id}" title="刪除">
