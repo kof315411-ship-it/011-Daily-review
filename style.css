@@ -20,11 +20,12 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* 防止 iOS 輸入時自動放大畫面 (要求 font-size >= 16px 或適當控制) */
+/* 防止 iOS 輸入時自動放大畫面 (要求 font-size >= 14px~16px) */
 @media screen and (max-width: 768px) {
   input[type="text"],
   input[type="time"],
   input[type="date"],
+  input[type="password"],
   select,
   textarea {
     font-size: 14px !important;
@@ -44,6 +45,20 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* 同步旋轉動畫 */
+.spin-sync {
+  animation: spinSync 1s linear infinite;
+}
+
+@keyframes spinSync {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

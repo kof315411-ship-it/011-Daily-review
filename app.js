@@ -1,6 +1,6 @@
 /**
  * 每日復盤與時間手帳 - Core Application Logic
- * 支援全平台自適應、歷史復盤翻閱檢索庫、PWA 離線快取
+ * 支援全平台自適應、歷史復盤翻閱檢索庫、PWA 離線快取、跨設備 (手機/電腦) 雲端智慧同步
  */
 
 // --- 全域狀態管理 ---
@@ -10,6 +10,10 @@ let currentDayData = null;
 let currentView = 'today'; // 'today' | 'history'
 let historySearchTerm = '';
 let historyRangeFilter = 'all'; // 'all' | '7days' | '30days' | 'thisMonth'
+
+// 雲端同步狀態
+let cloudSyncTimer = null;
+let isSyncing = false;
 
 // --- PWA Service Worker 註冊 ---
 if ('serviceWorker' in navigator) {
@@ -69,6 +73,7 @@ function generateId() {
 function createDefaultDayData(dateStr) {
   return {
     date: dateStr,
+    updatedAt: Date.now(),
     chores: [],
     diet: {
       breakfast: { completed: false, time: '08:00', content: '' },
@@ -84,13 +89,14 @@ function createDefaultDayData(dateStr) {
   };
 }
 
-// 初次啟動時，若無任何資料，填入圖片中的範例資料讓使用者立即體驗
+// 初次啟動時，若無任何資料，填入範例資料讓使用者立即體驗
 function checkAndInitSampleData() {
   const keys = Object.keys(localStorage).filter(k => k.startsWith('daily_review_'));
   if (keys.length === 0) {
     const today = getTodayDateStr();
     const sampleData = {
       date: today,
+      updatedAt: Date.now(),
       chores: [
         { id: generateId(), name: '洗衣服', completed: true, time: '09:00' },
         { id: generateId(), name: '曬衣服', completed: true, time: '09:40' },
@@ -120,7 +126,7 @@ function checkAndInitSampleData() {
         { id: generateId(), desc: '準備下週會議簡報大綱', completed: false }
       ]
     };
-    saveDayData(today, sampleData);
+    saveDayData(today, sampleData, false);
   }
 }
 
@@ -132,6 +138,9 @@ function loadDayData(dateStr) {
   }
   try {
     const data = JSON.parse(raw);
+    if (!data.updatedAt) {
+      data.updatedAt = Date.now();
+    }
     if (!data.diet) {
       data.diet = createDefaultDayData(dateStr).diet;
     }
@@ -154,9 +163,14 @@ function loadDayData(dateStr) {
 }
 
 // 儲存某日資料
-function saveDayData(dateStr, data) {
+function saveDayData(dateStr, data, triggerSync = true) {
+  data.updatedAt = Date.now();
   localStorage.setItem(`daily_review_${dateStr}`, JSON.stringify(data));
   updateHistoryTotalBadge();
+
+  if (triggerSync) {
+    scheduleCloudSync(1500); // 1.5 秒防抖自動推送到雲端
+  }
 }
 
 // 取得所有歷史紀錄清單（由新到舊排序）
@@ -172,7 +186,6 @@ function getAllHistoryRecords() {
       }
     }
   }
-  // 按照日期倒序排列 (最新的在前)
   records.sort((a, b) => b.date.localeCompare(a.date));
   return records;
 }
@@ -182,6 +195,368 @@ function updateHistoryTotalBadge() {
   const count = getAllHistoryRecords().length;
   const badge = document.getElementById('history-total-badge');
   if (badge) badge.textContent = count;
+}
+
+// ==========================================
+// ☁️ 跨設備雲端同步核心引擎 (GitHub Gist API)
+// ==========================================
+
+const SYNC_STORAGE_KEYS = {
+  TOKEN: 'sync_github_token',
+  GIST_ID: 'sync_github_gist_id',
+  LAST_TIME: 'sync_last_time'
+};
+
+function getSyncConfig() {
+  return {
+    token: localStorage.getItem(SYNC_STORAGE_KEYS.TOKEN) || '',
+    gistId: localStorage.getItem(SYNC_STORAGE_KEYS.GIST_ID) || '',
+    lastTime: localStorage.getItem(SYNC_STORAGE_KEYS.LAST_TIME) || ''
+  };
+}
+
+function setSyncConfig(token, gistId) {
+  if (token) localStorage.setItem(SYNC_STORAGE_KEYS.TOKEN, token.trim());
+  if (gistId) localStorage.setItem(SYNC_STORAGE_KEYS.GIST_ID, gistId.trim());
+}
+
+// 更新頂部雲端同步狀態標籤
+function updateSyncStatusUI(status, label = '') {
+  const dot = document.getElementById('sync-status-dot');
+  const text = document.getElementById('sync-status-text');
+  const icon = document.getElementById('manual-sync-icon');
+
+  if (icon) {
+    if (status === 'syncing') {
+      icon.classList.add('spin-sync');
+    } else {
+      icon.classList.remove('spin-sync');
+    }
+  }
+
+  if (!dot || !text) return;
+
+  const cfg = getSyncConfig();
+  if (!cfg.token) {
+    dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+    text.textContent = '雲端未綁定';
+    return;
+  }
+
+  if (status === 'syncing') {
+    dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+    text.textContent = '同步中...';
+  } else if (status === 'success') {
+    dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+    text.textContent = label || '雲端已同步';
+  } else if (status === 'error') {
+    dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+    text.textContent = label || '同步失敗';
+  } else {
+    dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+    text.textContent = '雲端已就緒';
+  }
+}
+
+// 排程防抖自動同步
+function scheduleCloudSync(delayMs = 1500) {
+  const cfg = getSyncConfig();
+  if (!cfg.token) return;
+
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  updateSyncStatusUI('syncing');
+
+  cloudSyncTimer = setTimeout(() => {
+    performCloudSync(false);
+  }, delayMs);
+}
+
+// 核心同步操作：雙向比對時間戳進行 Smart Merge
+async function performCloudSync(isManual = false) {
+  const cfg = getSyncConfig();
+  if (!cfg.token) {
+    if (isManual) showToast('尚未設定雲端同步，請先填入 GitHub Token');
+    updateSyncStatusUI('idle');
+    return false;
+  }
+
+  if (isSyncing) return;
+  isSyncing = true;
+  updateSyncStatusUI('syncing');
+
+  try {
+    let gistId = cfg.gistId;
+    let remoteData = null;
+
+    // 1. 如果有 Gist ID，先從 Gist 取得遠端資料
+    if (gistId) {
+      const getRes = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: {
+          'Authorization': `Bearer ${cfg.token}`,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+
+      if (getRes.status === 404) {
+        throw new Error('找不到指定的 Gist，可能已被刪除');
+      } else if (!getRes.ok) {
+        throw new Error(`GitHub API 錯誤 (${getRes.status})`);
+      }
+
+      const gistJson = await getRes.json();
+      const targetFile = gistJson.files && gistJson.files['daily_review_data.json'];
+      if (targetFile && targetFile.content) {
+        try {
+          remoteData = JSON.parse(targetFile.content);
+        } catch (e) {
+          console.warn('遠端資料格式非 JSON，將重新覆寫');
+        }
+      }
+    }
+
+    // 2. 本地資料搜集
+    const localRecords = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('daily_review_')) {
+        const dStr = key.replace('daily_review_', '');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+          localRecords[dStr] = loadDayData(dStr);
+        }
+      }
+    }
+
+    // 3. 智慧時間戳合併 (Smart Merge)
+    let needsPushToRemote = false;
+    let localWasUpdated = false;
+    let remoteRecords = (remoteData && remoteData.records) || {};
+
+    const mergedRecords = { ...remoteRecords };
+
+    // 合併本地至遠端對照表
+    for (const [dateStr, localItem] of Object.entries(localRecords)) {
+      const remoteItem = remoteRecords[dateStr];
+      if (!remoteItem) {
+        // 遠端沒有這天 -> 上傳本地這天
+        mergedRecords[dateStr] = localItem;
+        needsPushToRemote = true;
+      } else {
+        const localTime = localItem.updatedAt || 0;
+        const remoteTime = remoteItem.updatedAt || 0;
+
+        if (localTime > remoteTime) {
+          // 本地比較新 -> 採用本地，需推送遠端
+          mergedRecords[dateStr] = localItem;
+          needsPushToRemote = true;
+        } else if (remoteTime > localTime) {
+          // 遠端比較新 -> 採用遠端，需更新本地
+          localStorage.setItem(`daily_review_${dateStr}`, JSON.stringify(remoteItem));
+          localWasUpdated = true;
+        }
+      }
+    }
+
+    // 檢查遠端有而本地沒有的天數
+    for (const [dateStr, remoteItem] of Object.entries(remoteRecords)) {
+      if (!localRecords[dateStr]) {
+        localStorage.setItem(`daily_review_${dateStr}`, JSON.stringify(remoteItem));
+        localWasUpdated = true;
+      }
+    }
+
+    // 4. 若沒有 Gist ID，自動在 GitHub 建立私有 Gist
+    if (!gistId) {
+      const createRes = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cfg.token}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          description: '每日復盤手帳 - 個人專屬雲端同步資料庫 (請勿手動修改)',
+          public: false,
+          files: {
+            'daily_review_data.json': {
+              content: JSON.stringify({
+                version: 1,
+                lastSync: Date.now(),
+                records: mergedRecords
+              }, null, 2)
+            }
+          }
+        })
+      });
+
+      if (!createRes.ok) {
+        throw new Error('無法自動建立 GitHub Gist，請確認 Token 具備 gist 權限');
+      }
+
+      const createdGist = await createRes.json();
+      gistId = createdGist.id;
+      setSyncConfig(cfg.token, gistId);
+      needsPushToRemote = false;
+
+      const gistInput = document.getElementById('input-sync-gist-id');
+      if (gistInput) gistInput.value = gistId;
+
+      showToast('☁️ 雲端同步庫建立成功！');
+    } else if (needsPushToRemote || !remoteData) {
+      // 5. 將最新合併資料 PATCH 至遠端 Gist
+      const patchRes = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${cfg.token}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          files: {
+            'daily_review_data.json': {
+              content: JSON.stringify({
+                version: 1,
+                lastSync: Date.now(),
+                records: mergedRecords
+              }, null, 2)
+            }
+          }
+        })
+      });
+
+      if (!patchRes.ok) {
+        throw new Error('推送到 GitHub 失敗');
+      }
+    }
+
+    // 6. 如果本地資料有被遠端較新版本更新，刷新當前畫面
+    if (localWasUpdated) {
+      currentDayData = loadDayData(currentDateStr);
+      render();
+      if (currentView === 'history') {
+        renderHistory();
+      }
+      showToast('☁️ 已自動同步來自其他設備的最新修改！');
+    } else if (isManual) {
+      showToast('☁️ 雲端同步完成，目前資料已是最新版！');
+    }
+
+    const nowStr = new Date().toLocaleTimeString();
+    localStorage.setItem(SYNC_STORAGE_KEYS.LAST_TIME, nowStr);
+    updateSyncStatusUI('success', `已同步 (${nowStr.slice(0, 5)})`);
+    return true;
+
+  } catch (err) {
+    console.error('雲端同步失敗:', err);
+    updateSyncStatusUI('error', '同步錯誤');
+    if (isManual) {
+      showToast(`同步失敗: ${err.message}`);
+    }
+    return false;
+  } finally {
+    isSyncing = false;
+  }
+}
+
+// 強制從雲端覆蓋本地
+async function forcePullFromCloud() {
+  const cfg = getSyncConfig();
+  if (!cfg.token || !cfg.gistId) {
+    alert('請先填入 Token 與 Gist ID');
+    return;
+  }
+
+  if (!confirm('⚠️ 警告：這將會以雲端的版本「完全覆蓋」您這台設備的所有本地資料，確定要繼續嗎？')) {
+    return;
+  }
+
+  try {
+    updateSyncStatusUI('syncing');
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      headers: {
+        'Authorization': `Bearer ${cfg.token}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+
+    if (!res.ok) throw new Error('無法讀取遠端資料');
+    const json = await res.json();
+    const content = json.files['daily_review_data.json']?.content;
+    if (!content) throw new Error('雲端資料庫中找不到紀錄');
+
+    const remote = JSON.parse(content);
+    const records = remote.records || {};
+
+    let count = 0;
+    for (const [dStr, item] of Object.entries(records)) {
+      localStorage.setItem(`daily_review_${dStr}`, JSON.stringify(item));
+      count++;
+    }
+
+    currentDayData = loadDayData(currentDateStr);
+    render();
+    if (currentView === 'history') renderHistory();
+    updateSyncStatusUI('success', '已覆蓋完成');
+    showToast(`成功從雲端強制拉取 ${count} 天紀錄！`);
+    document.getElementById('sync-settings-modal').classList.add('hidden');
+  } catch (e) {
+    alert(`拉取失敗: ${e.message}`);
+    updateSyncStatusUI('error');
+  }
+}
+
+// 強制以本地覆蓋雲端
+async function forcePushToCloud() {
+  const cfg = getSyncConfig();
+  if (!cfg.token || !cfg.gistId) {
+    alert('請先填入 Token 與 Gist ID');
+    return;
+  }
+
+  if (!confirm('⚠️ 警告：這將會以這台設備的本地資料「完全覆蓋」雲端紀錄，確定要繼續嗎？')) {
+    return;
+  }
+
+  try {
+    updateSyncStatusUI('syncing');
+    const localRecords = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('daily_review_')) {
+        const dStr = key.replace('daily_review_', '');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+          localRecords[dStr] = loadDayData(dStr);
+        }
+      }
+    }
+
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${cfg.token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: {
+          'daily_review_data.json': {
+            content: JSON.stringify({
+              version: 1,
+              lastSync: Date.now(),
+              records: localRecords
+            }, null, 2)
+          }
+        }
+      })
+    });
+
+    if (!res.ok) throw new Error('推送失敗');
+    updateSyncStatusUI('success', '已強制上傳');
+    showToast('成功以本地資料強制覆蓋雲端！');
+    document.getElementById('sync-settings-modal').classList.add('hidden');
+  } catch (e) {
+    alert(`推送失敗: ${e.message}`);
+    updateSyncStatusUI('error');
+  }
 }
 
 // --- 視圖切換 (今日記錄 vs 歷史翻閱) ---
@@ -201,8 +576,8 @@ function switchMainView(view) {
     todayView.classList.remove('hidden');
     historyView.classList.add('hidden');
 
-    tabBtnToday.className = 'px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-emerald-700 flex items-center gap-1.5';
-    tabBtnHistory.className = 'px-3 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
+    tabBtnToday.className = 'px-2.5 sm:px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-emerald-700 flex items-center gap-1.5';
+    tabBtnHistory.className = 'px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
 
     if (mobileNavToday) {
       mobileNavToday.className = 'flex flex-col items-center gap-0.5 py-1 px-3 text-emerald-600';
@@ -218,8 +593,8 @@ function switchMainView(view) {
     todayView.classList.add('hidden');
     historyView.classList.remove('hidden');
 
-    tabBtnToday.className = 'px-3 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
-    tabBtnHistory.className = 'px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-emerald-700 flex items-center gap-1.5';
+    tabBtnToday.className = 'px-2.5 sm:px-3 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
+    tabBtnHistory.className = 'px-2.5 sm:px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-emerald-700 flex items-center gap-1.5';
 
     if (mobileNavToday) {
       mobileNavToday.className = 'flex flex-col items-center gap-0.5 py-1 px-3 text-slate-400 hover:text-slate-800';
@@ -263,7 +638,6 @@ function updateDateHeader() {
   const weekday = WEEKDAYS[dateObj.getDay()];
   badge.textContent = `${parts[1]}/${parts[2]} (${weekday})`;
 
-  // 重置新增項目的時間預設為當下時間
   const now = getCurrentTimeStr();
   const workTime = document.getElementById('new-work-time');
   if (workTime && !workTime.value) workTime.value = now;
@@ -448,10 +822,8 @@ function calculateDayStats(dayData) {
   let total = 0;
   let completed = 0;
 
-  // 家務
   dayData.chores.forEach(i => { total++; if (i.completed) completed++; });
 
-  // 飲食 (有填寫內容才計入統計)
   ['breakfast', 'lunch', 'dinner', 'snack'].forEach(k => {
     const m = dayData.diet[k];
     if (m && m.content && m.content.trim() !== '') {
@@ -460,16 +832,9 @@ function calculateDayStats(dayData) {
     }
   });
 
-  // 工作
   dayData.work.forEach(i => { total++; if (i.completed) completed++; });
-
-  // 娛樂
   dayData.entertainment.forEach(i => { total++; if (i.completed) completed++; });
-
-  // 學習
   dayData.learning.forEach(i => { total++; if (i.completed) completed++; });
-
-  // 其他
   dayData.other.forEach(i => { total++; if (i.completed) completed++; });
 
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
@@ -487,14 +852,12 @@ function updateProgressAndStats() {
   }
 }
 
-// --- 復盤文字生成引擎 (對齊使用者上傳格式) ---
+// --- 復盤文字生成引擎 ---
 function generateReviewTextForData(data) {
   const title = formatReviewDateTitle(data.date);
   const lines = [title];
 
-  // 1. 生活
   lines.push('生活');
-  // 1.1 家務
   if (data.chores && data.chores.length > 0) {
     const choresText = data.chores.map(c => c.name).join('、');
     lines.push(`  · 家務：${choresText}`);
@@ -502,7 +865,6 @@ function generateReviewTextForData(data) {
     lines.push('  · 家務：');
   }
 
-  // 1.2 飲食
   lines.push('  · 飲食：');
   const bf = data.diet.breakfast?.content || '';
   const lu = data.diet.lunch?.content || '';
@@ -516,7 +878,6 @@ function generateReviewTextForData(data) {
     lines.push(`  - 點心/飲品：${sn}`);
   }
 
-  // 2. 工作
   lines.push('工作');
   if (data.work && data.work.length > 0) {
     data.work.forEach(w => {
@@ -527,7 +888,6 @@ function generateReviewTextForData(data) {
     lines.push('  · ');
   }
 
-  // 3. 娛樂
   lines.push('娛樂');
   if (data.entertainment && data.entertainment.length > 0) {
     data.entertainment.forEach(e => {
@@ -538,7 +898,6 @@ function generateReviewTextForData(data) {
     lines.push('  · ');
   }
 
-  // 4. 學習
   lines.push('學習');
   if (data.learning && data.learning.length > 0) {
     data.learning.forEach(l => {
@@ -549,7 +908,6 @@ function generateReviewTextForData(data) {
     lines.push('  · ');
   }
 
-  // 5. 其他事件
   lines.push('其他事件');
   if (data.other && data.other.length > 0) {
     data.other.forEach(o => {
@@ -559,7 +917,6 @@ function generateReviewTextForData(data) {
     lines.push('  · ');
   }
 
-  // 6. 明日待辦事項 (若有)
   if (data.tomorrowTodos && data.tomorrowTodos.length > 0) {
     lines.push('');
     lines.push('明日待辦事項');
@@ -619,7 +976,6 @@ async function copyReviewText() {
 // 📚 歷史復盤翻閱與全文搜尋核心邏輯
 // ==========================================
 
-// 高亮搜尋關鍵字
 function highlightText(str, term) {
   if (!str) return '';
   const escaped = escapeHtml(str);
@@ -628,7 +984,6 @@ function highlightText(str, term) {
   return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
 }
 
-// 篩選與渲染歷史紀錄
 function renderHistory() {
   const container = document.getElementById('history-cards-container');
   const emptyState = document.getElementById('history-empty-state');
@@ -638,54 +993,32 @@ function renderHistory() {
   const now = new Date();
   const todayStr = getTodayDateStr();
 
-  // 1. 時間區間過濾
   const filteredRecords = allRecords.filter(item => {
     if (historyRangeFilter === 'all') return true;
-    
     const itemDate = new Date(item.date);
     const diffDays = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
-
-    if (historyRangeFilter === '7days') {
-      return diffDays >= 0 && diffDays <= 7;
-    }
-    if (historyRangeFilter === '30days') {
-      return diffDays >= 0 && diffDays <= 30;
-    }
-    if (historyRangeFilter === 'thisMonth') {
-      return item.date.startsWith(todayStr.slice(0, 7));
-    }
+    if (historyRangeFilter === '7days') return diffDays >= 0 && diffDays <= 7;
+    if (historyRangeFilter === '30days') return diffDays >= 0 && diffDays <= 30;
+    if (historyRangeFilter === 'thisMonth') return item.date.startsWith(todayStr.slice(0, 7));
     return true;
   });
 
-  // 2. 關鍵字搜尋過濾
   const term = historySearchTerm.trim().toLowerCase();
   const matchedRecords = filteredRecords.filter(item => {
     if (!term) return true;
-    // 檢查日期
     if (item.date.toLowerCase().includes(term)) return true;
     const dateTitle = formatReviewDateTitle(item.date).toLowerCase();
     if (dateTitle.includes(term)) return true;
 
-    // 檢查家務
     if (item.chores.some(c => c.name.toLowerCase().includes(term))) return true;
 
-    // 檢查飲食
     const dietVals = Object.values(item.diet || {}).map(d => (d.content || '').toLowerCase());
     if (dietVals.some(v => v.includes(term))) return true;
 
-    // 檢查工作
     if (item.work.some(w => (w.tag || '').toLowerCase().includes(term) || (w.desc || '').toLowerCase().includes(term))) return true;
-
-    // 檢查娛樂
     if (item.entertainment.some(e => (e.tag || '').toLowerCase().includes(term) || (e.desc || '').toLowerCase().includes(term))) return true;
-
-    // 檢查學習
     if (item.learning.some(l => (l.tag || '').toLowerCase().includes(term) || (l.desc || '').toLowerCase().includes(term))) return true;
-
-    // 檢查其他
     if (item.other.some(o => (o.desc || '').toLowerCase().includes(term))) return true;
-
-    // 檢查明日待辦
     if (item.tomorrowTodos.some(t => (t.desc || '').toLowerCase().includes(term))) return true;
 
     return false;
@@ -697,7 +1030,6 @@ function renderHistory() {
   }
   emptyState.classList.add('hidden');
 
-  // 渲染卡片
   matchedRecords.forEach(dayItem => {
     const card = document.createElement('div');
     card.className = 'history-card bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-5 flex flex-col justify-between';
@@ -706,17 +1038,14 @@ function renderHistory() {
     const dateTitle = formatReviewDateTitle(dayItem.date);
     const fullDate = formatFullDateTitle(dayItem.date);
 
-    // 家務摘錄
     const choreNames = dayItem.chores.map(c => highlightText(c.name, term)).join('、') || '無';
 
-    // 飲食摘錄
     const dietSummary = [
       dayItem.diet.breakfast?.content ? `早：${highlightText(dayItem.diet.breakfast.content, term)}` : '',
       dayItem.diet.lunch?.content ? `午：${highlightText(dayItem.diet.lunch.content, term)}` : '',
       dayItem.diet.dinner?.content ? `晚：${highlightText(dayItem.diet.dinner.content, term)}` : ''
     ].filter(Boolean).join(' | ') || '無填寫';
 
-    // 工作摘錄
     let workHtml = '';
     if (dayItem.work.length > 0) {
       workHtml = dayItem.work.map(w => `
@@ -729,7 +1058,6 @@ function renderHistory() {
       workHtml = '<li class="text-slate-400">無工作記錄</li>';
     }
 
-    // 娛樂摘錄
     let entHtml = '';
     if (dayItem.entertainment.length > 0) {
       entHtml = dayItem.entertainment.map(e => `
@@ -742,7 +1070,6 @@ function renderHistory() {
       entHtml = '<li class="text-slate-400">無娛樂記錄</li>';
     }
 
-    // 學習摘錄
     let learnHtml = '';
     if (dayItem.learning.length > 0) {
       learnHtml = dayItem.learning.map(l => `
@@ -755,7 +1082,6 @@ function renderHistory() {
       learnHtml = '<li class="text-slate-400">無學習記錄</li>';
     }
 
-    // 明日待辦摘錄
     let todoHtml = '';
     if (dayItem.tomorrowTodos.length > 0) {
       todoHtml = dayItem.tomorrowTodos.map(t => `
@@ -765,7 +1091,6 @@ function renderHistory() {
 
     card.innerHTML = `
       <div>
-        <!-- 卡片頭部：日期與完成度標籤 -->
         <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
           <div>
             <span class="text-base font-bold text-slate-900">${dateTitle}</span>
@@ -776,22 +1101,18 @@ function renderHistory() {
           </span>
         </div>
 
-        <!-- 內容摘要區域 (還原圖片清單版型) -->
         <div class="space-y-2.5 text-xs text-slate-700">
-          <!-- 生活 -->
           <div class="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
             <span class="font-bold text-teal-800 block mb-1">🌿 生活</span>
             <p class="text-slate-600 truncate"><strong class="text-slate-700">家務：</strong>${choreNames}</p>
             <p class="text-slate-600 truncate mt-0.5"><strong class="text-slate-700">飲食：</strong>${dietSummary}</p>
           </div>
 
-          <!-- 工作 -->
           <div class="p-2 rounded-xl border border-slate-100">
             <span class="font-bold text-blue-800 block mb-1">💼 工作</span>
             <ul class="space-y-0.5">${workHtml}</ul>
           </div>
 
-          <!-- 娛樂與學習 (並排或精簡) -->
           <div class="grid grid-cols-2 gap-2">
             <div class="p-2 rounded-xl border border-slate-100 bg-pink-50/30">
               <span class="font-bold text-pink-800 block mb-1">🎮 娛樂</span>
@@ -812,7 +1133,6 @@ function renderHistory() {
         </div>
       </div>
 
-      <!-- 卡片底部按鈕 -->
       <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
         <button type="button" class="btn-history-copy text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 p-1" data-date="${dayItem.date}">
           <i data-lucide="copy" class="w-3.5 h-3.5"></i>
@@ -837,7 +1157,6 @@ function renderHistory() {
   if (window.lucide) window.lucide.createIcons();
 }
 
-// 匯出當前篩選期間的所有復盤統整報告
 function exportHistorySummary() {
   const allRecords = getAllHistoryRecords();
   const now = new Date();
@@ -874,7 +1193,6 @@ function showToast(msg) {
   }, 2500);
 }
 
-// 輔助防 XSS
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -885,7 +1203,6 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// 切換日期
 function switchDate(newDateStr) {
   saveCurrentDayData();
   currentDateStr = newDateStr;
@@ -893,11 +1210,24 @@ function switchDate(newDateStr) {
   render();
 }
 
-// 儲存當前日期的所有在畫面上改動
 function saveCurrentDayData() {
   if (currentDayData) {
-    saveDayData(currentDateStr, currentDayData);
+    saveDayData(currentDateStr, currentDayData, true);
   }
+}
+
+// 彈出雲端同步設定視窗
+function openSyncSettingsModal() {
+  const cfg = getSyncConfig();
+  document.getElementById('input-sync-token').value = cfg.token;
+  document.getElementById('input-sync-gist-id').value = cfg.gistId;
+  document.getElementById('sync-settings-modal').classList.remove('hidden');
+  document.getElementById('sync-test-status').classList.add('hidden');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closeSyncSettingsModal() {
+  document.getElementById('sync-settings-modal').classList.add('hidden');
 }
 
 // --- 事件監聽器註冊 ---
@@ -906,14 +1236,68 @@ function initEventListeners() {
   document.getElementById('tab-btn-today').addEventListener('click', () => switchMainView('today'));
   document.getElementById('tab-btn-history').addEventListener('click', () => switchMainView('history'));
 
-  // 2. 行動端底部導航
+  // 2. 雲端同步視窗與觸發按鈕
+  document.getElementById('btn-open-sync-modal').addEventListener('click', openSyncSettingsModal);
+  document.getElementById('btn-menu-open-sync').addEventListener('click', openSyncSettingsModal);
+  document.getElementById('btn-mobile-open-sync').addEventListener('click', () => {
+    document.getElementById('mobile-backup-modal').classList.add('hidden');
+    openSyncSettingsModal();
+  });
+  document.getElementById('btn-open-sync-help').addEventListener('click', openSyncSettingsModal);
+
+  document.getElementById('btn-close-sync-modal').addEventListener('click', closeSyncSettingsModal);
+  document.getElementById('btn-cancel-sync-modal').addEventListener('click', closeSyncSettingsModal);
+
+  // 手動同步按鈕
+  document.getElementById('btn-manual-sync').addEventListener('click', () => {
+    performCloudSync(true);
+  });
+
+  // 儲存同步設定並執行同步
+  document.getElementById('btn-save-sync-config').addEventListener('click', async () => {
+    const token = document.getElementById('input-sync-token').value.trim();
+    const gistId = document.getElementById('input-sync-gist-id').value.trim();
+
+    if (!token) {
+      alert('請先輸入 GitHub Personal Access Token (PAT)');
+      return;
+    }
+
+    setSyncConfig(token, gistId);
+    showToast('正在驗證並同步雲端資料...');
+    const ok = await performCloudSync(true);
+    if (ok) {
+      closeSyncSettingsModal();
+    }
+  });
+
+  // 清除同步綁定
+  document.getElementById('btn-disconnect-sync').addEventListener('click', () => {
+    if (confirm('確定要清除這台設備的雲端同步設定嗎？本地已記錄的資料不會被刪除。')) {
+      localStorage.removeItem(SYNC_STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(SYNC_STORAGE_KEYS.GIST_ID);
+      document.getElementById('input-sync-token').value = '';
+      document.getElementById('input-sync-gist-id').value = '';
+      updateSyncStatusUI('idle');
+      closeSyncSettingsModal();
+      showToast('已清除雲端同步設定');
+    }
+  });
+
+  // 強制拉取與推送
+  document.getElementById('btn-force-pull').addEventListener('click', forcePullFromCloud);
+  document.getElementById('btn-force-push').addEventListener('click', forcePushToCloud);
+
+  // 3. 行動端底部導航
   const navToday = document.getElementById('mobile-nav-today');
   const navHistory = document.getElementById('mobile-nav-history');
+  const navSync = document.getElementById('mobile-nav-sync');
   const navExport = document.getElementById('mobile-nav-export');
   const navBackup = document.getElementById('mobile-nav-backup');
 
   if (navToday) navToday.addEventListener('click', () => switchMainView('today'));
   if (navHistory) navHistory.addEventListener('click', () => switchMainView('history'));
+  if (navSync) navSync.addEventListener('click', () => performCloudSync(true));
   if (navExport) navExport.addEventListener('click', () => showReviewModal());
   if (navBackup) navBackup.addEventListener('click', () => {
     document.getElementById('mobile-backup-modal').classList.remove('hidden');
@@ -955,7 +1339,7 @@ function initEventListeners() {
     switchDate(`${y}-${m}-${day}`);
   });
 
-  // 3. 家務快捷標籤點擊
+  // 4. 家務快捷標籤點擊
   document.querySelectorAll('.quick-chore-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.getAttribute('data-name');
@@ -963,7 +1347,6 @@ function initEventListeners() {
     });
   });
 
-  // 家務手動輸入
   const choreInput = document.getElementById('new-chore-input');
   const btnAddChore = document.getElementById('btn-add-chore');
   const handleAddChoreInput = () => {
@@ -992,7 +1375,6 @@ function initEventListeners() {
     showToast(`已記錄家務：${name}`);
   }
 
-  // 家務列表事件 (Checkbox, 更新時間, 刪除)
   document.getElementById('chores-list').addEventListener('click', (e) => {
     const target = e.target;
     if (target.classList.contains('chore-checkbox')) {
@@ -1033,7 +1415,7 @@ function initEventListeners() {
     }
   });
 
-  // 4. 飲食輸入監聽
+  // 5. 飲食輸入監聽
   document.getElementById('diet-list').addEventListener('change', (e) => {
     const row = e.target.closest('.diet-row');
     if (!row) return;
@@ -1067,7 +1449,7 @@ function initEventListeners() {
     });
   });
 
-  // 5. 工作新增
+  // 6. 工作新增
   const btnAddWork = document.getElementById('btn-add-work');
   const workTag = document.getElementById('new-work-tag');
   const workDesc = document.getElementById('new-work-desc');
@@ -1094,7 +1476,7 @@ function initEventListeners() {
   btnAddWork.addEventListener('click', handleAddWork);
   workDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddWork(); });
 
-  // 6. 娛樂新增
+  // 7. 娛樂新增
   const btnAddEnt = document.getElementById('btn-add-entertainment');
   const entTag = document.getElementById('new-entertainment-tag');
   const entDesc = document.getElementById('new-entertainment-desc');
@@ -1121,7 +1503,7 @@ function initEventListeners() {
   btnAddEnt.addEventListener('click', handleAddEnt);
   entDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddEnt(); });
 
-  // 7. 學習新增
+  // 8. 學習新增
   const btnAddLearn = document.getElementById('btn-add-learning');
   const learnTag = document.getElementById('new-learning-tag');
   const learnDesc = document.getElementById('new-learning-desc');
@@ -1148,7 +1530,7 @@ function initEventListeners() {
   btnAddLearn.addEventListener('click', handleAddLearn);
   learnDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddLearn(); });
 
-  // 8. 其他事件新增
+  // 9. 其他事件新增
   const btnAddOther = document.getElementById('btn-add-other');
   const otherDesc = document.getElementById('new-other-desc');
   const otherTime = document.getElementById('new-other-time');
@@ -1172,7 +1554,7 @@ function initEventListeners() {
   btnAddOther.addEventListener('click', handleAddOther);
   otherDesc.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddOther(); });
 
-  // 9. 通用列表監聽器（工作、娛樂、學習、其他事件）：勾選、編輯、重設時間、刪除
+  // 10. 列表點擊與編輯監聽器
   const listContainerIds = ['work-list', 'entertainment-list', 'learning-list', 'other-list'];
   listContainerIds.forEach(cId => {
     const el = document.getElementById(cId);
@@ -1245,7 +1627,7 @@ function initEventListeners() {
     });
   });
 
-  // 10. 明日待辦清單操作
+  // 11. 明日待辦清單操作
   const btnAddTomorrow = document.getElementById('btn-add-tomorrow');
   const tomorrowInput = document.getElementById('new-tomorrow-input');
   const handleAddTomorrow = () => {
@@ -1289,7 +1671,7 @@ function initEventListeners() {
     }
   });
 
-  // 11. 一鍵將今日未完成事項轉移至明日待辦
+  // 12. 一鍵將今日未完成事項轉移至明日待辦
   const transferUncompleted = () => {
     const uncompletedItems = [];
 
@@ -1332,7 +1714,7 @@ function initEventListeners() {
   document.getElementById('btn-transfer-to-tomorrow').addEventListener('click', transferUncompleted);
   document.getElementById('btn-copy-uncompleted-to-tomorrow').addEventListener('click', transferUncompleted);
 
-  // 12. 將昨日預排待辦匯入今日工作
+  // 13. 將昨日預排待辦匯入今日工作
   document.getElementById('btn-import-yesterday-todo').addEventListener('click', () => {
     const parts = currentDateStr.split('-');
     const d = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
@@ -1375,7 +1757,7 @@ function initEventListeners() {
     }
   });
 
-  // 13. 復盤視窗開啟與複製
+  // 14. 復盤視窗開啟與複製
   document.getElementById('btn-export-text').addEventListener('click', () => showReviewModal());
   document.getElementById('btn-close-modal').addEventListener('click', hideReviewModal);
   document.getElementById('btn-cancel-modal').addEventListener('click', hideReviewModal);
@@ -1387,7 +1769,7 @@ function initEventListeners() {
     }
   });
 
-  // 14. 歷史翻閱庫監聽 (搜尋、篩選、卡片點擊)
+  // 15. 歷史翻閱庫監聽
   const searchInput = document.getElementById('history-search-input');
   const clearSearchBtn = document.getElementById('btn-clear-search');
 
@@ -1408,7 +1790,6 @@ function initEventListeners() {
     renderHistory();
   });
 
-  // 篩選區間按鈕點擊
   document.querySelectorAll('.history-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.history-filter-btn').forEach(b => {
@@ -1420,10 +1801,8 @@ function initEventListeners() {
     });
   });
 
-  // 匯出歷史區間統整報告
   document.getElementById('btn-export-history-summary').addEventListener('click', exportHistorySummary);
 
-  // 歷史卡片內操作委派 (複製、載入編輯、刪除)
   document.getElementById('history-cards-container').addEventListener('click', (e) => {
     const copyBtn = e.target.closest('.btn-history-copy');
     if (copyBtn) {
@@ -1450,12 +1829,13 @@ function initEventListeners() {
         localStorage.removeItem(`daily_review_${dateStr}`);
         renderHistory();
         updateHistoryTotalBadge();
+        scheduleCloudSync(500); // 同步刪除至雲端
         showToast(`已刪除 ${dateStr} 的紀錄`);
       }
     }
   });
 
-  // 15. 清空當日紀錄 (電腦端與手機端)
+  // 16. 清空當日紀錄
   const handleClearDay = () => {
     if (confirm(`確定要清空 ${currentDateStr} 的所有紀錄嗎？清空後無法復原。`)) {
       currentDayData = createDefaultDayData(currentDateStr);
@@ -1468,7 +1848,7 @@ function initEventListeners() {
   document.getElementById('btn-clear-day').addEventListener('click', handleClearDay);
   document.getElementById('btn-mobile-clear-day').addEventListener('click', handleClearDay);
 
-  // 16. 匯出備份 (JSON)
+  // 17. 匯出備份 (JSON)
   const handleBackupJson = () => {
     const backup = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -1490,7 +1870,7 @@ function initEventListeners() {
   document.getElementById('btn-backup-json').addEventListener('click', handleBackupJson);
   document.getElementById('btn-mobile-backup-json').addEventListener('click', handleBackupJson);
 
-  // 17. 匯入備份 (JSON)
+  // 18. 匯入備份 (JSON)
   const handleImportJson = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1509,6 +1889,7 @@ function initEventListeners() {
         currentDayData = loadDayData(currentDateStr);
         render();
         renderHistory();
+        scheduleCloudSync(1000);
         document.getElementById('mobile-backup-modal').classList.add('hidden');
       } catch (err) {
         alert('備份檔案格式不正確，無法匯入。');
@@ -1520,7 +1901,14 @@ function initEventListeners() {
   document.getElementById('file-import-json').addEventListener('change', handleImportJson);
   document.getElementById('mobile-file-import-json').addEventListener('change', handleImportJson);
 
-  // 實時更新頂部時鐘
+  // 19. 當設備從背景切換回前景時（例如手機解鎖螢幕、電腦切換分頁），自動觸發靜默拉取
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      performCloudSync(false);
+    }
+  });
+
+  // 20. 實時更新頂部時鐘
   setInterval(() => {
     const d = new Date();
     const clockEl = document.getElementById('current-clock-display');
@@ -1536,4 +1924,13 @@ window.addEventListener('DOMContentLoaded', () => {
   currentDayData = loadDayData(currentDateStr);
   initEventListeners();
   render();
+
+  // 若已設定雲端同步，啟動時自動拉取最新資料進行合併
+  const cfg = getSyncConfig();
+  if (cfg.token) {
+    updateSyncStatusUI('success');
+    performCloudSync(false);
+  } else {
+    updateSyncStatusUI('idle');
+  }
 });
